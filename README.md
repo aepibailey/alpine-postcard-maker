@@ -17,7 +17,12 @@ appears. Tap it to update.
 
 ## Status
 - **M0** — installable offline app shell ✅
-- M1 onward — see [`docs/PLAN.md`](docs/PLAN.md)
+- **M1a** — art spike: 3 sample posters for art-direction approval
+- M1b onward — see [`docs/PLAN.md`](docs/PLAN.md)
+
+## Fonts
+Bundled under the SIL Open Font License 1.1 (licenses in `fonts/`):
+Limelight (Sorkin Type Co) and Josefin Sans (The Josefin Sans Project Authors).
 
 ## For contributors (Claude Code)
 See [`CLAUDE.md`](CLAUDE.md). Run `npm test` and `npm run e2e` before opening a PR.

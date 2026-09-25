@@ -1,6 +1,25 @@
 import { VERSION } from './version.js';
+import { SAMPLES } from './samples.js';
+import { renderPoster } from './poster.js';
 
 document.getElementById('app-version').textContent = VERSION;
+
+function showSamples() {
+  const carousel = document.getElementById('carousel');
+  carousel.innerHTML = SAMPLES
+    .map((recipe, i) => `<figure class="poster-frame" data-index="${i}">${renderPoster(recipe)}</figure>`)
+    .join('');
+  const hint = document.getElementById('carousel-hint');
+  const frames = [...carousel.children];
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) hint.textContent = `${Number(entry.target.dataset.index) + 1} of ${frames.length} · swipe for more`;
+    }
+  }, { root: carousel, threshold: 0.6 });
+  frames.forEach((frame) => observer.observe(frame));
+}
+
+showSamples();
 
 const status = document.getElementById('offline-status');
 const banner = document.getElementById('update-banner');
