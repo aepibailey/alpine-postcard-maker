@@ -1,30 +1,37 @@
 import { SAMPLES } from './samples.js';
 import { renderPoster } from './poster.js';
 import { PEAK_KINDS, peakShape } from './layers/mountains.js';
+import { PALETTES } from './palettes.js';
 import { polygon } from './svg.js';
 
-const LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
-const SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
+const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
+const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
+export const TIMES = ['dawn', 'midday', 'alpenglow', 'night'];
+const TIME_LABELS = { dawn: 'Dawn', midday: 'Midday', alpenglow: 'Alpenglow', night: 'Starry night' };
 const STORE_KEY = 'apm.editor';
 
 // The poster being edited. Scene and lettering stay fixed until later milestones add controls.
-const state = { ...SAMPLES[0], id: 'preview', peak: 'spire', peakSeed: newSeed() };
+const { sun: _fixedSun, ...base } = SAMPLES[0];
+const state = { ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow' };
 
 function newSeed() {
   return 1 + Math.floor(Math.random() * 999998);
 }
 
-// Remembering the last mountain is a convenience only; the app works without storage.
+// Remembering the last choices is a convenience only; the app works without storage.
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
-    if (saved && PEAK_KINDS.includes(saved.peak)) Object.assign(state, { peak: saved.peak, peakSeed: saved.peakSeed ?? state.peakSeed });
+    if (!saved) return;
+    if (PEAK_KINDS.includes(saved.peak)) state.peak = saved.peak;
+    if (Number.isInteger(saved.peakSeed)) state.peakSeed = saved.peakSeed;
+    if (TIMES.includes(saved.time)) state.time = saved.time;
   } catch { /* ignore */ }
 }
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ peak: state.peak, peakSeed: state.peakSeed }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ peak: state.peak, peakSeed: state.peakSeed, time: state.time }));
   } catch { /* ignore */ }
 }
 
@@ -39,41 +46,68 @@ function peakIcon(kind, seed) {
     `<g clip-path="url(#${id})">${polygon(snow, '#f3e6c8')}</g></svg>`;
 }
 
+// A little swatch of the time of day: its sky bands, sun or moon, and a peak in its inks.
+function timeIcon(time) {
+  const p = PALETTES[time];
+  const bands = p.sky.slice(0, 4).map((c, i) => `<rect x="0" y="${i * 10}" width="60" height="11" fill="${c}"/>`).join('');
+  const orb = time === 'night'
+    ? `<circle cx="44" cy="11" r="6" fill="${p.sun}"/><circle cx="47" cy="9" r="5" fill="${p.sky[1]}"/>`
+    : `<circle cx="${time === 'midday' ? 44 : 14}" cy="${time === 'dawn' ? 30 : 13}" r="7" fill="${p.sun}"/>`;
+  return `<svg viewBox="0 0 60 40" aria-hidden="true">${bands}${orb}` +
+    polygon([[8, 40], [30, 12], [52, 40]], p.peak) + polygon([[30, 12], [52, 40], [36, 40]], p.shadow) +
+    polygon([[25, 18.4], [30, 12], [35, 18.4], [32, 17], [30, 20], [28, 17]], p.snow) + `</svg>`;
+}
+
+function radioGroup(container, options, label, short, icon) {
+  container.innerHTML = options.map((value) =>
+    `<button type="button" role="radio" data-value="${value}" aria-label="${label[value]}">` +
+    `<span class="icon">${icon ? icon(value) : ''}</span><span>${short[value]}</span></button>`).join('');
+  return [...container.querySelectorAll('button')];
+}
+
 export function startEditor() {
   const preview = document.getElementById('preview');
   const label = document.getElementById('peak-label');
-  const picker = document.getElementById('peak-picker');
+  const peakPicker = document.getElementById('peak-picker');
+  const timePicker = document.getElementById('time-picker');
   const roll = document.getElementById('roll-button');
 
   load();
 
-  picker.innerHTML = PEAK_KINDS.map((kind) =>
-    `<button type="button" role="radio" data-peak="${kind}" aria-label="${LABELS[kind]}">` +
-    `<span class="icon"></span><span>${SHORT[kind]}</span></button>`).join('');
-  const buttons = [...picker.querySelectorAll('button')];
+  const peakButtons = radioGroup(peakPicker, PEAK_KINDS, PEAK_LABELS, PEAK_SHORT);
+  const timeButtons = radioGroup(timePicker, TIMES, TIME_LABELS, TIME_LABELS, timeIcon);
 
   function render() {
     preview.innerHTML = renderPoster(state);
     preview.dataset.peak = state.peak;
     preview.dataset.seed = String(state.peakSeed);
-    label.textContent = state.peak === 'random' ? `${LABELS.random} · No. ${state.peakSeed}` : LABELS[state.peak];
-    for (const button of buttons) {
-      const kind = button.dataset.peak;
-      button.setAttribute('aria-checked', String(kind === state.peak));
-      button.querySelector('.icon').innerHTML = peakIcon(kind, state.peakSeed);
+    preview.dataset.time = state.time;
+    const peakName = state.peak === 'random' ? `${PEAK_LABELS.random} No. ${state.peakSeed}` : PEAK_LABELS[state.peak];
+    label.textContent = `${peakName} · ${TIME_LABELS[state.time]}`;
+    for (const button of peakButtons) {
+      button.setAttribute('aria-checked', String(button.dataset.value === state.peak));
+      button.querySelector('.icon').innerHTML = peakIcon(button.dataset.value, state.peakSeed);
     }
+    for (const button of timeButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.time));
     roll.hidden = state.peak !== 'random';
     save();
   }
 
-  function choose(kind) {
+  function choosePeak(kind) {
     state.peak = kind;
     render();
   }
 
-  picker.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-peak]');
-    if (button) choose(button.dataset.peak);
+  peakPicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-value]');
+    if (button) choosePeak(button.dataset.value);
+  });
+
+  timePicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-value]');
+    if (!button) return;
+    state.time = button.dataset.value;
+    render();
   });
 
   roll.addEventListener('click', () => {
@@ -91,7 +125,7 @@ export function startEditor() {
     start = null;
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
     const i = PEAK_KINDS.indexOf(state.peak);
-    choose(PEAK_KINDS[(i + (dx < 0 ? 1 : -1) + PEAK_KINDS.length) % PEAK_KINDS.length]);
+    choosePeak(PEAK_KINDS[(i + (dx < 0 ? 1 : -1) + PEAK_KINDS.length) % PEAK_KINDS.length]);
   });
   preview.addEventListener('pointercancel', () => { start = null; });
 

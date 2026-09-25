@@ -10,10 +10,18 @@ export const POSTER_WIDTH = 1200;
 export const POSTER_HEIGHT = 1800;
 const HORIZON = 1150;
 
+// Where the sun (or moon) sits for each time of day, unless a recipe places it itself.
+const CELESTIAL = {
+  dawn: { x: 330, y: 960, r: 150 },
+  midday: { x: 930, y: 480, r: 95 },
+  alpenglow: { x: 300, y: 560, r: 100 },
+  night: { x: 900, y: 420, r: 80 },
+};
+
 function scene(recipe, p, rng, id) {
   switch (recipe.scene) {
     case 'village':
-      return village(p, rng, { horizon: HORIZON });
+      return village(p, rng, { horizon: HORIZON, lit: recipe.time === 'night' });
 
     case 'lake': {
       const lakeBottom = 1480;
@@ -71,9 +79,10 @@ function lettering(recipe, p) {
 export function renderPoster(recipe, { id = recipe.id } = {}) {
   const p = PALETTES[recipe.time];
   const rng = createRng(recipe.seed);
+  const body = { ...CELESTIAL[recipe.time], ...recipe.sun };
   const celestial = recipe.time === 'night'
-    ? stars(p, rng, { count: 80, bottom: 1000 }) + moon(p, { id, x: 900, y: 420, r: 80 })
-    : sun(p, { x: recipe.sun?.x ?? 860, y: recipe.sun?.y ?? 420, r: recipe.sun?.r ?? 110 });
+    ? stars(p, rng, { count: 80, bottom: 1000 }) + moon(p, { id, ...body })
+    : sun(p, body);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}" role="img" aria-label="${recipe.lettering.title} poster">` +
     sky(p, { horizon: HORIZON }) +
