@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- Dev-only page: renders one poster full-size for screenshots. Not shipped.
-     ?i=<sample index>  &peak=<spire|massif|pyramid|random>  &seed=<ridgeline seed>  &time=<dawn|midday|alpenglow|night> -->
+     ?i=<sample index>  &peak=<spire|massif|pyramid|random>  &seed=<ridgeline seed>
+     &time=<dawn|midday|alpenglow|night>  &layers=village,forest,... -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -16,6 +17,7 @@
     if (params.has('peak')) recipe.peak = params.get('peak');
     if (params.has('time')) { recipe.time = params.get('time'); delete recipe.sun; }
     if (params.has('seed')) recipe.peakSeed = Number(params.get('seed'));
+    if (params.has('layers')) recipe.layers = Object.fromEntries(params.get('layers').split(',').filter(Boolean).map((l) => [l, true]));
     await document.fonts.load("100px 'Limelight'");
     await document.fonts.load("700 100px 'Josefin Sans'");
     document.body.innerHTML = renderPoster(recipe);

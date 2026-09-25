@@ -3,16 +3,21 @@ import { renderPoster } from './poster.js';
 import { PEAK_KINDS, peakShape } from './layers/mountains.js';
 import { PALETTES } from './palettes.js';
 import { polygon } from './svg.js';
+import { SCENERY } from './scene.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
 export const TIMES = ['dawn', 'midday', 'alpenglow', 'night'];
 const TIME_LABELS = { dawn: 'Dawn', midday: 'Midday', alpenglow: 'Alpenglow', night: 'Starry night' };
+const SCENERY_LABELS = { village: '🏘️ Village', hut: '🛖 Hut', gondola: '🚡 Gondola', forest: '🌲 Forest', lake: '🏞️ Lake', skier: '⛷️ Skier' };
 const STORE_KEY = 'apm.editor';
 
 // The poster being edited. Scene and lettering stay fixed until later milestones add controls.
-const { sun: _fixedSun, ...base } = SAMPLES[0];
-const state = { ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow' };
+const { sun: _fixedSun, scene: _fixedScene, ...base } = SAMPLES[0];
+const state = {
+  ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow',
+  layers: { village: true, hut: false, gondola: false, forest: true, lake: false, skier: false },
+};
 
 function newSeed() {
   return 1 + Math.floor(Math.random() * 999998);
@@ -26,12 +31,13 @@ function load() {
     if (PEAK_KINDS.includes(saved.peak)) state.peak = saved.peak;
     if (Number.isInteger(saved.peakSeed)) state.peakSeed = saved.peakSeed;
     if (TIMES.includes(saved.time)) state.time = saved.time;
+    if (saved.layers) for (const name of SCENERY) if (typeof saved.layers[name] === 'boolean') state.layers[name] = saved.layers[name];
   } catch { /* ignore */ }
 }
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ peak: state.peak, peakSeed: state.peakSeed, time: state.time }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ peak: state.peak, peakSeed: state.peakSeed, time: state.time, layers: state.layers }));
   } catch { /* ignore */ }
 }
 
@@ -71,11 +77,15 @@ export function startEditor() {
   const peakPicker = document.getElementById('peak-picker');
   const timePicker = document.getElementById('time-picker');
   const roll = document.getElementById('roll-button');
+  const sceneryPicker = document.getElementById('scenery-picker');
 
   load();
 
   const peakButtons = radioGroup(peakPicker, PEAK_KINDS, PEAK_LABELS, PEAK_SHORT);
   const timeButtons = radioGroup(timePicker, TIMES, TIME_LABELS, TIME_LABELS, timeIcon);
+  sceneryPicker.innerHTML = SCENERY.map((name) =>
+    `<button type="button" data-layer="${name}" aria-pressed="false">${SCENERY_LABELS[name]}</button>`).join('');
+  const sceneryButtons = [...sceneryPicker.querySelectorAll('button')];
 
   function render() {
     preview.innerHTML = renderPoster(state);
@@ -89,6 +99,8 @@ export function startEditor() {
       button.querySelector('.icon').innerHTML = peakIcon(button.dataset.value, state.peakSeed);
     }
     for (const button of timeButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.time));
+    for (const button of sceneryButtons) button.setAttribute('aria-pressed', String(state.layers[button.dataset.layer]));
+    preview.dataset.layers = SCENERY.filter((name) => state.layers[name]).join(',');
     roll.hidden = state.peak !== 'random';
     save();
   }
@@ -107,6 +119,13 @@ export function startEditor() {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.time = button.dataset.value;
+    render();
+  });
+
+  sceneryPicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-layer]');
+    if (!button) return;
+    state.layers[button.dataset.layer] = !state.layers[button.dataset.layer];
     render();
   });
 

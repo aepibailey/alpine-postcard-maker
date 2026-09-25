@@ -21,14 +21,14 @@ body {
 }
 
 .masthead h1 {
-  margin: 20px 0 12px;
-  font-size: 1.35rem;
+  margin: 12px 0 10px;
+  font-size: 1.05rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   text-align: center;
   border-top: 3px double var(--navy);
   border-bottom: 3px double var(--navy);
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 main {
@@ -107,6 +107,28 @@ main {
 .picker-time button { min-height: 64px; }
 
 .picker-time svg { max-width: 56px; height: 34px; border-radius: 4px; }
+
+.toggles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.toggles button {
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: var(--navy);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.toggles button[aria-pressed="true"] { border-color: var(--navy); background: var(--sun); opacity: 1; }
 
 .roll-button {
   font: inherit;

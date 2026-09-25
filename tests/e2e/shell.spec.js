@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { VERSION } from '../../src/version.js';
 
-const SHOTS = 'docs/screenshots/m2';
+const SHOTS = 'docs/screenshots/m3';
 
 test('app shell loads under the Pages subpath', async ({ page }) => {
   await page.goto('./');
