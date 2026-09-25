@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Dev-only page: renders one poster full-size for screenshots. Not shipped.
-     ?i=<sample index>  &peak=<spire|massif|pyramid|random>  &seed=<ridgeline seed> -->
+     ?i=<sample index>  &peak=<spire|massif|pyramid|random>  &seed=<ridgeline seed>  &time=<dawn|midday|alpenglow|night> -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -14,6 +14,7 @@
     const params = new URLSearchParams(location.search);
     const recipe = { ...SAMPLES[Number(params.get('i') ?? 0)] };
     if (params.has('peak')) recipe.peak = params.get('peak');
+    if (params.has('time')) { recipe.time = params.get('time'); delete recipe.sun; }
     if (params.has('seed')) recipe.peakSeed = Number(params.get('seed'));
     await document.fonts.load("100px 'Limelight'");
     await document.fonts.load("700 100px 'Josefin Sans'");

@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-const SHOTS = 'docs/screenshots/m1b';
+import { PALETTES } from '../../src/palettes.js';
+
+const SHOTS = 'docs/screenshots/m2';
 const posterMarkup = (page) => page.locator('#preview').innerHTML();
 
 test('picker switches between the four mountains', async ({ page }) => {
@@ -15,7 +17,6 @@ test('picker switches between the four mountains', async ({ page }) => {
     await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
     await expect(preview).toHaveAttribute('data-peak', kind);
     seen.add(await posterMarkup(page));
-    await page.screenshot({ path: `${SHOTS}/app-${kind}.png` });
   }
   expect(seen.size).toBe(4);
 });
@@ -31,7 +32,7 @@ test('🎲 rolls a new ridgeline each time', async ({ page }) => {
     seeds.add(await page.locator('#preview').getAttribute('data-seed'));
   }
   expect(seeds.size).toBe(4);
-  await expect(page.locator('#peak-label')).toHaveText(/Random ridgeline · No\. \d+/);
+  await expect(page.locator('#peak-label')).toHaveText(/Random ridgeline No\. \d+ · /);
 
   await page.getByRole('radio', { name: 'Jagged spire' }).click();
   await expect(roll).toBeHidden();
@@ -56,13 +57,33 @@ test('swiping the poster steps through the mountains', async ({ page }) => {
   await expect(page.locator('#preview')).toHaveAttribute('data-peak', 'random');
 });
 
-test('the chosen mountain is remembered after reopening', async ({ page }) => {
+test('time of day recolours the whole poster', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('radio', { name: 'Jagged spire' }).click();
+  await page.evaluate(() => document.fonts.ready);
+  for (const [name, time] of [['Dawn', 'dawn'], ['Midday', 'midday'], ['Alpenglow', 'alpenglow'], ['Starry night', 'night']]) {
+    await page.getByRole('radio', { name }).click();
+    await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
+    const preview = page.locator('#preview');
+    await expect(preview).toHaveAttribute('data-time', time);
+    // The poster is drawn in this time's inks: its sky, peak and snow colours all appear.
+    const markup = await preview.innerHTML();
+    for (const ink of [PALETTES[time].sky[0], PALETTES[time].peak, PALETTES[time].snow]) expect(markup).toContain(ink);
+    expect(markup.includes('-moon')).toBe(time === 'night');
+    await expect(page.locator('#peak-label')).toContainText(name);
+    await page.screenshot({ path: `${SHOTS}/app-${time}.png` });
+  }
+});
+
+test('the chosen mountain and time are remembered after reopening', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('radio', { name: 'Random ridgeline' }).click();
+  await page.getByRole('radio', { name: 'Starry night' }).click();
   const seed = await page.locator('#preview').getAttribute('data-seed');
   await page.reload();
   await expect(page.locator('#preview')).toHaveAttribute('data-peak', 'random');
   await expect(page.locator('#preview')).toHaveAttribute('data-seed', seed);
+  await expect(page.locator('#preview')).toHaveAttribute('data-time', 'night');
 });
 
 test('editor and fonts work offline', async ({ page, context }) => {
@@ -80,13 +101,13 @@ test('editor and fonts work offline', async ({ page, context }) => {
   expect(loaded).toBe(true);
 });
 
-test('full-size posters for review: 3 peaks + 3 random ridgelines', async ({ browser }) => {
+test('full-size posters for review: every time of day', async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1800 }, deviceScaleFactor: 1 });
-  const shots = [['spire', 0], ['massif', 0], ['pyramid', 0], ['random', 11], ['random', 44], ['random', 66]];
-  for (const [peak, seed] of shots) {
-    await page.goto(`tests/e2e/pages/poster.html?i=0&peak=${peak}&seed=${seed}`);
+  const shots = [['spire', 0, 'dawn'], ['spire', 0, 'midday'], ['spire', 0, 'alpenglow'], ['spire', 0, 'night'], ['random', 44, 'dawn'], ['massif', 0, 'night']];
+  for (const [peak, seed, time] of shots) {
+    await page.goto(`tests/e2e/pages/poster.html?i=0&peak=${peak}&seed=${seed}&time=${time}`);
     await page.waitForSelector('body[data-ready="true"]');
-    await page.screenshot({ path: `${SHOTS}/poster-${peak}${seed ? `-${seed}` : ''}.png` });
+    await page.screenshot({ path: `${SHOTS}/poster-${peak}${seed ? `-${seed}` : ''}-${time}.png` });
   }
   await page.close();
 });

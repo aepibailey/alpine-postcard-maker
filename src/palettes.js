@@ -10,7 +10,7 @@ export const PALETTES = {
     sun: '#fbe3a0', far: '#a3a8c9', peak: '#7c86b3', shadow: '#4d5688',
     snow: '#fbeee6', snowShadow: '#c9bfd8', mid: '#6d8a7a', fore: '#36465a',
     accent: '#d9674a', wood: '#8a5a44', water: '#7d8fbf',
-    paper: '#f6ecdc', ink: '#2c3450', title: '#2c3450',
+    paper: '#f6ecdc', ink: '#2c3450', title: '#f6ecdc',
   },
   midday: {
     sky: ['#6fa8cf', '#8dbcdb', '#abcfe4', '#cbe1ea', '#e6efe8'],

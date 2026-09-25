@@ -50,7 +50,7 @@ main {
 
 .poster-frame {
   /* Keep the whole 2:3 poster plus the picker on one phone screen. */
-  width: min(100%, calc(60dvh * 2 / 3));
+  width: min(100%, calc(52dvh * 2 / 3));
   margin: 0;
   background: #fffaf0;
   padding: 8px;
@@ -59,7 +59,7 @@ main {
   user-select: none;
 }
 
-.poster-frame svg { display: block; width: 100%; height: auto; }
+.poster-frame svg { display: block; width: 100%; height: auto; overflow: hidden; }
 
 .peak-label {
   margin: 2px 0 0;
@@ -69,14 +69,22 @@ main {
   text-transform: uppercase;
 }
 
-.peak-picker {
+.picker-heading {
+  align-self: flex-start;
+  margin: 4px 0 -4px;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.picker {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   width: 100%;
 }
 
-.peak-picker button {
+.picker button {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,9 +100,13 @@ main {
   font-weight: 600;
 }
 
-.peak-picker button[aria-checked="true"] { border-color: var(--navy); background: var(--sun); }
+.picker button[aria-checked="true"] { border-color: var(--navy); background: var(--sun); }
 
-.peak-picker svg { width: 100%; max-width: 64px; height: 40px; }
+.picker svg { width: 100%; max-width: 64px; height: 40px; }
+
+.picker-time button { min-height: 64px; }
+
+.picker-time svg { max-width: 56px; height: 34px; border-radius: 4px; }
 
 .roll-button {
   font: inherit;

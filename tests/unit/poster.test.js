@@ -25,3 +25,17 @@ test('clip and mask ids are unique per poster so several can share a page', () =
   const ids = SAMPLES.flatMap((r) => [...renderPoster(r).matchAll(/ id="([^"]+)"/g)].map((m) => m[1]));
   assert.equal(new Set(ids).size, ids.length);
 });
+
+test('every time of day renders every peak cleanly', async () => {
+  const { PALETTES } = await import('../../src/palettes.js');
+  for (const time of Object.keys(PALETTES)) {
+    for (const peak of ['spire', 'massif', 'pyramid', 'random']) {
+      for (const scene of ['village', 'lake', 'slope']) {
+        const svg = renderPoster({ ...SAMPLES[0], sun: undefined, id: 't', time, peak, peakSeed: 7, scene });
+        assert.ok(!svg.includes('NaN') && !svg.includes('undefined'), `${time}/${peak}/${scene}`);
+        assert.ok(svg.includes(PALETTES[time].sky[0]), `${time} sky missing`);
+        assert.equal(svg.includes('-moon'), time === 'night', `${time} moon`);
+      }
+    }
+  }
+});

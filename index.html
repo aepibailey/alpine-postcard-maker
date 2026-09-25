@@ -22,9 +22,12 @@
     <section class="editor" aria-label="Poster editor">
       <figure class="poster-frame" id="preview" aria-live="polite"></figure>
       <p class="peak-label" id="peak-label"></p>
-      <div class="peak-picker" id="peak-picker" role="radiogroup" aria-label="Mountain"></div>
+      <h2 class="picker-heading" id="peak-heading">Mountain</h2>
+      <div class="picker" id="peak-picker" role="radiogroup" aria-labelledby="peak-heading"></div>
       <button type="button" class="roll-button" id="roll-button" hidden>🎲 New ridgeline</button>
-      <p class="hint">Swipe the poster to change the mountain</p>
+      <h2 class="picker-heading" id="time-heading">Time of day</h2>
+      <div class="picker picker-time" id="time-picker" role="radiogroup" aria-labelledby="time-heading"></div>
+      <p class="hint">Tip: swipe the poster to change the mountain</p>
     </section>
     <p class="status" id="offline-status">Checking offline support…</p>
   </main>

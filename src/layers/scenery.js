@@ -29,12 +29,12 @@ function house(p, { x, y, w, h, roof = p.accent, wall = p.paper, window = p.ink 
     (w > 60 ? `<rect x="${x + w * 0.6}" y="${y - h * 0.62}" width="${w * 0.18}" height="${h * 0.26}" fill="${window}"/>` : '');
 }
 
-function church(p, { x, y, window = p.ink }) {
+function church(p, { x, y, window = p.ink, roof = p.accent }) {
   const tw = 46;
   return `<rect x="${x}" y="${y - 90}" width="120" height="90" fill="${p.paper}"/>` +
-    polygon([[x - 10, y - 90], [x + 60, y - 140], [x + 130, y - 90]], p.accent) +
+    polygon([[x - 10, y - 90], [x + 60, y - 140], [x + 130, y - 90]], roof) +
     `<rect x="${x + 120}" y="${y - 210}" width="${tw}" height="210" fill="${p.paper}"/>` +
-    polygon([[x + 114, y - 210], [x + 120 + tw / 2, y - 330], [x + 126 + tw, y - 210]], p.accent) +
+    polygon([[x + 114, y - 210], [x + 120 + tw / 2, y - 330], [x + 126 + tw, y - 210]], roof) +
     `<circle cx="${x + 120 + tw / 2}" cy="${y - 170}" r="12" fill="${window}"/>` +
     `<rect x="${x + 131}" y="${y - 120}" width="${tw - 22}" height="36" rx="12" fill="${window}"/>` +
     `<rect x="${x + 30}" y="${y - 60}" width="18" height="30" rx="9" fill="${window}"/>` +
@@ -42,20 +42,23 @@ function church(p, { x, y, window = p.ink }) {
 }
 
 // Village on a rolling hill: rooftops stepping down the slope, church on the right.
-export function village(p, rng, { horizon = 1150 } = {}) {
+export function village(p, rng, { horizon = 1150, lit = false } = {}) {
+  // Windows glow at night; by day they are dark panes.
+  const window = lit ? p.accent : p.fore;
+  const roof = lit ? p.wood : p.accent;
   const hill = `<path d="M0,${horizon + 40} C300,${horizon - 20} 700,${horizon + 30} 1200,${horizon + 10} L1200,1800 L0,1800 Z" fill="${p.mid}"/>`;
   const houses = [
     { x: 250, y: 1262, w: 70, h: 60 }, { x: 345, y: 1250, w: 90, h: 72 }, { x: 460, y: 1256, w: 64, h: 54 },
     { x: 300, y: 1318, w: 96, h: 76 }, { x: 420, y: 1320, w: 78, h: 64 }, { x: 530, y: 1312, w: 100, h: 82 },
     { x: 650, y: 1300, w: 70, h: 58 },
-  ].map((h) => house(p, { ...h, window: p.accent === p.ink ? p.paper : p.fore })).join('');
+  ].map((h) => house(p, { ...h, window, roof })).join('');
   const lower = `<path d="M0,1420 C260,1370 520,1440 820,1400 C980,1380 1100,1400 1200,1390 L1200,1800 L0,1800 Z" fill="${p.fore}"/>`;
   // A lane winding down from the village toward the viewer, and a low stone wall beside it.
-  const lane = `<path d="M565,1330 C520,1400 640,1440 590,1510 C530,1590 360,1640 380,1800 L640,1800 C600,1660 720,1580 700,1500 C680,1430 600,1400 625,1330 Z" fill="${p.mid}"/>`;
+  const lane = `<path d="M565,1330 C520,1400 640,1440 590,1510 C530,1590 360,1640 380,1800 L640,1800 C600,1660 720,1580 700,1500 C680,1430 600,1400 625,1330 Z" fill="${lit ? p.snowShadow : p.mid}"/>`;
   return hill +
     forest(p, rng, { x0: 40, x1: 230, baseY: 1260, minH: 80, maxH: 130, color: p.fore }) +
     forest(p, rng, { x0: 900, x1: 1180, baseY: 1250, minH: 70, maxH: 120, color: p.fore }) +
-    houses + church(p, { x: 730, y: 1320, window: p.fore }) +
+    houses + church(p, { x: 730, y: 1320, window, roof }) +
     lower + lane +
     forest(p, rng, { x0: 20, x1: 260, baseY: 1460, minH: 180, maxH: 260, color: p.fore, density: 0.9 }) +
     forest(p, rng, { x0: 960, x1: 1200, baseY: 1450, minH: 170, maxH: 250, color: p.fore, density: 0.9 });

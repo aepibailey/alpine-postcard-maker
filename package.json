@@ -1,6 +1,6 @@
 {
   "name": "alpine-postcard-maker",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Installable offline web app for designing vintage Alpine travel posters.",
