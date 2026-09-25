@@ -19,10 +19,12 @@
   </header>
 
   <main>
-    <section class="samples" aria-labelledby="samples-heading">
-      <h2 id="samples-heading">Sample posters · art direction preview</h2>
-      <div class="carousel" id="carousel" tabindex="0"></div>
-      <p class="carousel-hint" id="carousel-hint">Swipe to see all 3</p>
+    <section class="editor" aria-label="Poster editor">
+      <figure class="poster-frame" id="preview" aria-live="polite"></figure>
+      <p class="peak-label" id="peak-label"></p>
+      <div class="peak-picker" id="peak-picker" role="radiogroup" aria-label="Mountain"></div>
+      <button type="button" class="roll-button" id="roll-button" hidden>🎲 New ridgeline</button>
+      <p class="hint">Swipe the poster to change the mountain</p>
     </section>
     <p class="status" id="offline-status">Checking offline support…</p>
   </main>

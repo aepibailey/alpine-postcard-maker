@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { VERSION } from '../../src/version.js';
 
-const SHOTS = 'docs/screenshots/m1a';
+const SHOTS = 'docs/screenshots/m1b';
 
 test('app shell loads under the Pages subpath', async ({ page }) => {
   await page.goto('./');
   await expect(page).toHaveURL(/\/alpine-postcard-maker\/$/);
   await expect(page.getByRole('heading', { name: 'Alpine Postcard Maker' })).toBeVisible();
   await expect(page.locator('#app-version')).toHaveText(VERSION);
-  await expect(page.locator('#carousel svg').first()).toBeVisible();
+  await expect(page.locator('#preview svg').first()).toBeVisible();
 });
 
 test('manifest is installable-shaped', async ({ page, request }) => {
@@ -34,7 +34,7 @@ test('works offline after first visit', async ({ page, context }) => {
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Alpine Postcard Maker' })).toBeVisible();
   await expect(page.locator('#app-version')).toHaveText(VERSION);
-  await expect(page.locator('#carousel svg').first()).toBeVisible();
+  await expect(page.locator('#preview svg').first()).toBeVisible();
   });
 
 test('update banner shows when a new version is waiting', async ({ page }) => {
