@@ -17,8 +17,9 @@ appears. Tap it to update.
 
 ## Status
 - **M0** — installable offline app shell ✅
-- **M1a** — art spike: 3 sample posters for art-direction approval
-- M1b onward — see [`docs/PLAN.md`](docs/PLAN.md)
+- **M1a** — art spike: 3 sample posters, approved ✅
+- **M1b** — mountain picker (spire, massif, pyramid) + 🎲 random ridgeline generator
+- M2 onward — see [`docs/PLAN.md`](docs/PLAN.md)
 
 ## Fonts
 Bundled under the SIL Open Font License 1.1 (licenses in `fonts/`):

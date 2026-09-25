@@ -25,7 +25,7 @@ function scene(recipe, p, rng, id) {
         `<rect x="0" y="${HORIZON}" width="${POSTER_WIDTH}" height="${lakeBottom - HORIZON}" fill="${p.water}"/>` +
         `<g clip-path="url(#${id}-lake)" opacity="0.9">` +
           `<g transform="${mirror}">${farRange(r, createRng(recipe.seed), { minY: 820, maxY: 940 })}</g>` +
-          mountain(r, { id: `${id}-refl`, kind: recipe.peak, transform: mirror }) +
+          mountain(r, { id: `${id}-refl`, kind: recipe.peak, seed: recipe.peakSeed, transform: mirror }) +
         `</g>` +
         `<path d="M0,${HORIZON} L1200,${HORIZON} L1200,${HORIZON + 50} C900,${HORIZON + 70} 700,${HORIZON + 30} 500,${HORIZON + 40} C300,${HORIZON + 50} 150,${HORIZON + 30} 0,${HORIZON + 45} Z" fill="${mix(p.fore, p.water, 0.45)}"/>` +
         lakeWater(p, rng, { top: HORIZON, bottom: lakeBottom }) +
@@ -79,7 +79,7 @@ export function renderPoster(recipe, { id = recipe.id } = {}) {
     sky(p, { horizon: HORIZON }) +
     celestial +
     farRange(p, createRng(recipe.seed), { minY: 820, maxY: 940 }) +
-    mountain(p, { id, kind: recipe.peak }) +
+    mountain(p, { id, kind: recipe.peak, seed: recipe.peakSeed }) +
     scene(recipe, p, rng, id) +
     lettering(recipe, p) +
     border(p) +

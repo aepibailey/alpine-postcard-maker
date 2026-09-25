@@ -39,40 +39,76 @@ main {
   gap: 12px;
 }
 
-.samples { width: 100%; max-width: 420px; }
-
-.samples h2 {
-  margin: 0 0 10px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-.carousel {
+.editor {
+  width: 100%;
+  max-width: 420px;
   display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  padding-bottom: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
-
-.carousel::-webkit-scrollbar { display: none; }
 
 .poster-frame {
-  flex: 0 0 100%;
+  /* Keep the whole 2:3 poster plus the picker on one phone screen. */
+  width: min(100%, calc(60dvh * 2 / 3));
   margin: 0;
-  scroll-snap-align: center;
   background: #fffaf0;
   padding: 8px;
   box-shadow: 0 4px 14px rgb(31 58 95 / 0.25);
+  touch-action: pan-y;
+  user-select: none;
 }
 
 .poster-frame svg { display: block; width: 100%; height: auto; }
 
-.carousel-hint { margin: 8px 0 0; font-size: 0.85rem; text-align: center; opacity: 0.8; }
+.peak-label {
+  margin: 2px 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.peak-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.peak-picker button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 72px;
+  padding: 6px 4px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: var(--navy);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.peak-picker button[aria-checked="true"] { border-color: var(--navy); background: var(--sun); }
+
+.peak-picker svg { width: 100%; max-width: 64px; height: 40px; }
+
+.roll-button {
+  font: inherit;
+  font-weight: 700;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--navy);
+  color: var(--cream);
+}
+
+.roll-button[hidden] { display: none; }
+
+.hint { margin: 0; font-size: 0.85rem; opacity: 0.75; text-align: center; }
 
 .status { margin: 0; font-size: 0.9rem; text-align: center; }
 

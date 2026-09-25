@@ -1,4 +1,5 @@
 import { polygon } from '../svg.js';
+import { generateRidgeline } from './ridgeline.js';
 
 const W = 1200;
 
@@ -26,9 +27,16 @@ function snowPolygon(edge) {
   return [[0, 0], [W, 0], [W, edge[0][1]], ...edge, [0, edge[edge.length - 1][1]]];
 }
 
+export const PEAK_KINDS = ['spire', 'massif', 'pyramid', 'random'];
+
+// The hand-drawn peaks, or a generated ridgeline for 'random'.
+export function peakShape(kind, seed = 0) {
+  return kind === 'random' ? generateRidgeline(seed) : PEAKS[kind];
+}
+
 // Flat silhouette + shadow facet + snowfield, all clipped to the outline.
-export function mountain(p, { id, kind, transform = '' }) {
-  const peak = PEAKS[kind];
+export function mountain(p, { id, kind, seed = 0, transform = '' }) {
+  const peak = peakShape(kind, seed);
   const snow = snowPolygon(peak.snowEdge);
   const shadows = [peak.shadow];
   const shadowClip = shadows.map((s) => polygon(s, '#000')).join('');
