@@ -9,6 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="src/fonts.css">
   <link rel="stylesheet" href="src/app.css">
   <script type="module" src="src/app.js"></script>
 </head>
@@ -18,16 +19,11 @@
   </header>
 
   <main>
-    <figure class="poster-frame" aria-label="Placeholder poster">
-      <svg class="placeholder" viewBox="0 0 300 450" role="img" aria-labelledby="ph-title">
-        <title id="ph-title">Placeholder poster — real posters arrive in milestone M1</title>
-        <rect width="300" height="450" fill="#e9a25f"/>
-        <path d="M0 330 L110 170 L140 210 L165 180 L250 300 L300 260 L300 450 L0 450 Z" fill="#1f3a5f" opacity="0.35"/>
-        <rect x="20" y="190" width="260" height="70" fill="#f3e6c8" stroke="#1f3a5f" stroke-width="2" stroke-dasharray="6 4"/>
-        <text x="150" y="220" text-anchor="middle" font-size="16" fill="#1f3a5f" font-family="sans-serif" font-weight="700">PLACEHOLDER</text>
-        <text x="150" y="244" text-anchor="middle" font-size="12" fill="#1f3a5f" font-family="sans-serif">Posters coming in M1</text>
-      </svg>
-    </figure>
+    <section class="samples" aria-labelledby="samples-heading">
+      <h2 id="samples-heading">Sample posters · art direction preview</h2>
+      <div class="carousel" id="carousel" tabindex="0"></div>
+      <p class="carousel-hint" id="carousel-hint">Swipe to see all 3</p>
+    </section>
     <p class="status" id="offline-status">Checking offline support…</p>
   </main>
 

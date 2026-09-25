@@ -39,15 +39,40 @@ main {
   gap: 12px;
 }
 
+.samples { width: 100%; max-width: 420px; }
+
+.samples h2 {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.carousel {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 6px;
+}
+
+.carousel::-webkit-scrollbar { display: none; }
+
 .poster-frame {
+  flex: 0 0 100%;
   margin: 0;
-  width: min(100%, 360px);
-  padding: 10px;
+  scroll-snap-align: center;
   background: #fffaf0;
+  padding: 8px;
   box-shadow: 0 4px 14px rgb(31 58 95 / 0.25);
 }
 
-.placeholder { display: block; width: 100%; height: auto; }
+.poster-frame svg { display: block; width: 100%; height: auto; }
+
+.carousel-hint { margin: 8px 0 0; font-size: 0.85rem; text-align: center; opacity: 0.8; }
 
 .status { margin: 0; font-size: 0.9rem; text-align: center; }
 
