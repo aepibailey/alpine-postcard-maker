@@ -20,12 +20,14 @@ appears. Tap it to update.
 - **M1a** — art spike: 3 sample posters, approved ✅
 - **M1b** — mountain picker (spire, massif, pyramid) + 🎲 random ridgeline generator ✅
 - **M2** — time of day: dawn, midday, alpenglow, starry night ✅
-- **M3** — scenery switches: village, hut, gondola, forest, lake, skier
-- M4 onward — see [`docs/PLAN.md`](docs/PLAN.md)
+- **M3** — scenery switches: village, hut, gondola, forest, lake, skier ✅
+- **M4** — lettering: your destination and tagline, 4 typefaces, 4 title placements
+- M5 onward — see [`docs/PLAN.md`](docs/PLAN.md)
 
 ## Fonts
 Bundled under the SIL Open Font License 1.1 (licenses in `fonts/`):
-Limelight (Sorkin Type Co) and Josefin Sans (The Josefin Sans Project Authors).
+Limelight (Sorkin Type Co), Josefin Sans (The Josefin Sans Project Authors),
+Poiret One (The Poiret One Project Authors) and Bebas Neue (Dharma Type).
 
 ## For contributors (Claude Code)
 See [`CLAUDE.md`](CLAUDE.md). Run `npm test` and `npm run e2e` before opening a PR.

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { PALETTES } from '../../src/palettes.js';
 
-const SHOTS = 'docs/screenshots/m3';
+const SHOTS = 'docs/screenshots/m4';
 const posterMarkup = (page) => page.locator('#preview').innerHTML();
 
 test('picker switches between the four mountains', async ({ page }) => {
@@ -92,19 +92,74 @@ test('scenery switches add and remove layers', async ({ page }) => {
     seen.add(await preview.innerHTML());
   }
   expect(seen.size).toBe(7);
-  await page.screenshot({ path: `${SHOTS}/app-everything.png` });
 
   await page.getByRole('button', { name: 'Lake' }).click();
   await expect(page.getByRole('button', { name: 'Lake' })).toHaveAttribute('aria-pressed', 'false');
   await expect(preview).not.toHaveAttribute('data-layers', /lake/);
-  await page.screenshot({ path: `${SHOTS}/app-no-lake.png` });
 });
 
-test('mountain, time and scenery are remembered after reopening', async ({ page }) => {
+test('typing a destination and tagline updates the poster', async ({ page }) => {
+  await page.goto('./');
+  await page.getByLabel('Destination').fill('Zermatt');
+  await page.getByLabel('Tagline').fill('Ski the high valley');
+  const lettering = page.locator('#preview [data-role="lettering"]');
+  await expect(lettering.first()).toHaveText('ZERMATT');
+  await expect(lettering.nth(1)).toHaveText('SKI THE HIGH VALLEY');
+  await expect(page.getByRole('img', { name: 'Zermatt poster' })).toBeVisible();
+  // The fields stop at their limits.
+  await page.getByLabel('Destination').fill('A'.repeat(40));
+  await expect(page.getByLabel('Destination')).toHaveValue('A'.repeat(24));
+});
+
+test('typeface and placement pickers restyle the title', async ({ page }) => {
+  await page.goto('./');
+  await page.getByLabel('Destination').fill('Zermatt');
+  await page.evaluate(() => document.fonts.ready);
+  const preview = page.locator('#preview');
+  for (const [name, font, family] of [['Poiret One', 'poiret', 'Poiret One'], ['Bebas Neue', 'bebas', 'Bebas Neue'], ['Josefin Sans', 'josefin', 'Josefin Sans'], ['Limelight', 'limelight', 'Limelight']]) {
+    await page.getByRole('radio', { name }).click();
+    await expect(preview).toHaveAttribute('data-font', font);
+    await expect(preview.locator('[data-role="lettering"]').first()).toHaveAttribute('font-family', new RegExp(family));
+  }
+  for (const [name, layout] of [['Bottom', 'bottom'], ['Arched', 'arched'], ['Banner', 'banner'], ['Top', 'top']]) {
+    await page.getByRole('radio', { name, exact: true }).click();
+    await expect(preview).toHaveAttribute('data-layout', layout);
+    await expect(preview.locator('[data-role="lettering"]').first()).toContainText('ZERMATT');
+    if (layout === 'arched') await expect(preview.locator('textPath')).toHaveCount(1);
+    await page.screenshot({ path: `${SHOTS}/app-${layout}.png`, fullPage: true });
+  }
+});
+
+test('long names stay inside the poster in every typeface and placement', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => document.fonts.ready);
+  for (const title of ['Grindelwald-Wengen Ski', 'WWWWWWWWWWWWWWWWWWWWWWWW', 'Mmmmmmmmmmmmmmmmmmmmmmmm']) {
+    await page.getByLabel('Destination').fill(title);
+    for (const font of ['Limelight', 'Poiret One', 'Bebas Neue', 'Josefin Sans']) {
+      await page.getByRole('radio', { name: font }).click();
+      for (const layout of ['Top', 'Bottom', 'Arched', 'Banner']) {
+        await page.getByRole('radio', { name: layout, exact: true }).click();
+        await page.evaluate(() => document.fonts.ready);
+        const box = await page.locator('#preview [data-role="lettering"]').first().evaluate((el) => {
+          const b = el.getBBox();
+          return { left: b.x, right: b.x + b.width };
+        });
+        const label = `${title} / ${font} / ${layout}`;
+        expect(box.left, label).toBeGreaterThanOrEqual(34);
+        expect(box.right, label).toBeLessThanOrEqual(1166);
+      }
+    }
+  }
+});
+
+test('all choices are remembered after reopening', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('radio', { name: 'Random ridgeline' }).click();
   await page.getByRole('radio', { name: 'Starry night' }).click();
   await page.getByRole('button', { name: 'Gondola' }).click();
+  await page.getByLabel('Destination').fill('Saas Fee');
+  await page.getByRole('radio', { name: 'Bebas Neue' }).click();
+  await page.getByRole('radio', { name: 'Arched' }).click();
   const layers = await page.locator('#preview').getAttribute('data-layers');
   const seed = await page.locator('#preview').getAttribute('data-seed');
   await page.reload();
@@ -112,6 +167,9 @@ test('mountain, time and scenery are remembered after reopening', async ({ page 
   await expect(page.locator('#preview')).toHaveAttribute('data-seed', seed);
   await expect(page.locator('#preview')).toHaveAttribute('data-time', 'night');
   await expect(page.locator('#preview')).toHaveAttribute('data-layers', layers);
+  await expect(page.getByLabel('Destination')).toHaveValue('Saas Fee');
+  await expect(page.locator('#preview')).toHaveAttribute('data-font', 'bebas');
+  await expect(page.locator('#preview')).toHaveAttribute('data-layout', 'arched');
 });
 
 test('editor and fonts work offline', async ({ page, context }) => {
@@ -123,26 +181,25 @@ test('editor and fonts work offline', async ({ page, context }) => {
   await page.getByRole('button', { name: /New ridgeline/ }).click();
   await expect(page.locator('#preview svg')).toBeVisible();
   const loaded = await page.evaluate(async () => {
-    const faces = [...await document.fonts.load("100px 'Limelight'"), ...await document.fonts.load("700 100px 'Josefin Sans'")];
-    return faces.length >= 2 && faces.every((f) => f.status === 'loaded');
+    const faces = [];
+    for (const spec of ["100px 'Limelight'", "700 100px 'Josefin Sans'", "100px 'Poiret One'", "100px 'Bebas Neue'"]) faces.push(...await document.fonts.load(spec));
+    return faces.length >= 4 && faces.every((f) => f.status === 'loaded');
   });
   expect(loaded).toBe(true);
 });
 
-test('full-size posters for review: scenery combinations', async ({ browser }) => {
+test('full-size posters for review: typefaces and placements', async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1800 }, deviceScaleFactor: 1 });
   const shots = [
-    ['spire', 'alpenglow', 'village,forest'],
-    ['massif', 'midday', 'village,hut,gondola,forest,lake'],
-    ['pyramid', 'night', 'skier,gondola,forest'],
-    ['random', 'dawn', 'village,hut,forest,skier'],
-    ['spire', 'night', 'lake,village,forest'],
-    ['massif', 'alpenglow', 'lake,hut,skier'],
+    'font=limelight&layout=arched&time=midday&layers=lake,hut,forest&title=Lac%20Bleu&tagline=Summer%20by%20the%20water',
+    'font=poiret&layout=bottom&time=dawn&layers=village,forest&title=Sonnenberg&tagline=First%20light',
+    'font=bebas&layout=top&time=night&layers=village,forest,gondola&title=Nachtfeld&tagline=Ski%20beneath%20the%20stars',
+    'font=josefin&layout=banner&time=alpenglow&peak=random&layers=lake,village,forest&title=Rosental&tagline=Evening%20glow',
   ];
-  for (const [peak, time, layers] of shots) {
-    await page.goto(`tests/e2e/pages/poster.html?i=0&peak=${peak}&seed=44&time=${time}&layers=${layers}`);
+  for (const [k, q] of shots.entries()) {
+    await page.goto(`tests/e2e/pages/poster.html?i=0&seed=44&${q}`);
     await page.waitForSelector('body[data-ready="true"]');
-    await page.screenshot({ path: `${SHOTS}/poster-${peak}-${time}-${layers.replaceAll(',', '-')}.png` });
+    await page.screenshot({ path: `${SHOTS}/poster-${k + 1}.png` });
   }
   await page.close();
 });

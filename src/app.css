@@ -130,6 +130,32 @@ main {
 
 .toggles button[aria-pressed="true"] { border-color: var(--navy); background: var(--sun); opacity: 1; }
 
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.field input {
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 2px solid var(--navy);
+  border-radius: 10px;
+  background: #fffaf0;
+  color: var(--navy);
+}
+
+.picker-font button, .picker-layout button { min-height: 64px; }
+
+.font-sample { font-size: 1.35rem; line-height: 1.2; }
+
+.picker-layout svg { max-width: 28px; height: 40px; }
+
 .roll-button {
   font: inherit;
   font-weight: 700;
