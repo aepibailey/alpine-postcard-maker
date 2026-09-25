@@ -1,3 +1,48 @@
+# M0 build notes (skeleton PWA + deploy pipeline)
+
+**Decisions (from the owner, this turn):** create a `main` branch; change the Browser Integration line to "the owner"; the repo is already public.
+
+**Git steps**
+1. Push a new branch `main` pointing at the existing plan commit `551a278` (docs/PLAN.md only).
+2. Build M0 on `claude/alpine-postcard-planning-rqa8hy`, commit, push, and open PR → `main`.
+
+**Files**
+- `index.html`: app shell (title, `theme-color`, `<link rel="manifest" href="manifest.webmanifest">`), a clearly labeled placeholder poster frame ("Posters coming in M1"), version number, and a hidden "New version – tap to refresh" banner.
+- `src/app.css`: vintage-poster base styles, phone-first layout.
+- `src/app.js`: registers `./sw.js` (scope `./`) and shows the version. Update flow: a waiting worker makes the banner appear → tap → `postMessage('SKIP_WAITING')` → reload on `controllerchange`.
+- `src/version.js`: `export const VERSION = '0.0.1'`.
+- `sw.js`: `CACHE = 'apm-0.0.1'` plus a relative `PRECACHE` list. Install precaches everything; activate deletes old caches and calls `clients.claim()`. Fetch is cache-first for same-origin GET, and navigations fall back to cached `./index.html`. It skips waiting only when the app sends the message.
+- `manifest.webmanifest`:
+  - `id`, `start_url` and `scope` are all `"./"`, with `display: standalone` and theme/background colors.
+  - Icons: 192 and 512 `any`, plus 512 `maskable`.
+- `icons/icon.svg` is an original design: a stylized peak, sun and deco frame. `scripts/make-icons.mjs` renders it to PNG with Playwright, and the PNGs are committed as `icons/icon-192.png`, `icons/icon-512.png` and `icons/maskable-512.png`.
+- `scripts/serve.mjs`: a tiny dependency-free static server that serves the repo under `/alpine-postcard-maker/`, the same way Pages does. Used by Playwright.
+- `scripts/build-site.mjs`: copies only the app files into `_site/` for deploy, leaving out tests and node_modules.
+- `package.json` (`type: module`; scripts `test` = `node --test tests/unit`, `e2e` = `playwright test`, `icons`, `build`; devDep `@playwright/test@1.56.1`, which matches the preinstalled Chromium), plus `package-lock.json`, `playwright.config.js` (412×915 viewport, webServer = serve.mjs) and `.gitignore`.
+- `tests/unit/`:
+  - `paths.test.js`: no leading-slash URLs in the HTML, manifest or sw, and manifest `start_url`/`scope` are `./`.
+  - `no-sound.test.js`: no `Audio(`, `AudioContext`, `<audio`, `vibrate` or audio file extensions.
+  - `precache.test.js`: every PRECACHE file exists, every app file is precached, and the sw cache name matches VERSION.
+- `tests/e2e/shell.spec.js`:
+  - The app loads at the subpath.
+  - The manifest is valid.
+  - The service worker takes control.
+  - With the context set **offline**, a reload still renders the app.
+  - Saves screenshots to `docs/screenshots/m0/`.
+- `.github/workflows/deploy.yml`: triggers on `pull_request` and on `push` to `main`, plus manual runs. The **test** job runs npm ci, unit tests, then Playwright (installing Chromium on the runner). The **deploy** job (main only, needs test) runs build-site → `configure-pages` → `upload-pages-artifact(_site)` → `deploy-pages`, with `pages: write` and `id-token: write` permissions.
+- `.claude/settings.json`: a SessionStart hook that runs `npm ci` so future Claude sessions can run the tests.
+- `CLAUDE.md`: the approved draft, with the Browser Integration line changed to "Display a clear notification to the owner". `README.md` explains what the app is, how to install it on a phone and how updates work. `docs/PLAN.md` is synced with this plan.
+
+**PR body:** screenshots embedded via `https://github.com/aepibailey/alpine-postcard-maker/raw/claude/alpine-postcard-planning-rqa8hy/docs/screenshots/m0/*.png`, plus a **"Before you merge"** list:
+1. Settings → General → Default branch → switch to **main**. This is required because Pages only deploys from the default branch.
+2. Settings → Pages → Source: **GitHub Actions**.
+
+Then comes a "Test on your phone" checklist: install, airplane-mode reopen, and the version shown.
+
+**Verify before pushing:** run `npm test` and `npm run e2e` locally in the container (both green), re-run the icon script, check the screenshots visually, and send them to the owner in chat too. After the PR is open, check its CI run passes.
+
+---
+
 # Alpine Postcard Maker — Plan (v1 + roadmap)
 
 ## Context
@@ -98,7 +143,7 @@ index.html  manifest.webmanifest  sw.js
 
 ## 5. Draft CLAUDE.md (committed in M0)
 
-> Note: the whole CLAUDE.md says "the owner" instead of a name. The only exception is the required **Browser Integration** section, which is kept word-for-word as requested and still contains "Display a clear notification to Shawn". That one word can be changed to "the owner" if preferred.
+> Note: the committed `CLAUDE.md` is the source of truth. It refers to "the owner" throughout, including in the Browser Integration section (changed at the owner's request).
 
 ```markdown
 # Alpine Postcard Maker — Project Guide for Claude

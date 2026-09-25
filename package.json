@@ -1,0 +1,17 @@
+{
+  "name": "alpine-postcard-maker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Installable offline web app for designing vintage Alpine travel posters.",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.js",
+    "e2e": "playwright test",
+    "serve": "node scripts/serve.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "build": "node scripts/build-site.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
