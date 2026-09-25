@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Original app icon: stylized peak at alpenglow inside a deco frame. -->
+  <rect width="512" height="512" fill="#1f3a5f"/>
+  <rect x="40" y="40" width="432" height="432" rx="24" fill="#f3e6c8"/>
+  <rect x="58" y="58" width="396" height="396" rx="12" fill="#e9a25f"/>
+  <circle cx="330" cy="200" r="70" fill="#f6d27a"/>
+  <path d="M58 380 L190 170 L232 230 L262 186 L380 360 L454 300 L454 454 L58 454 Z" fill="#1f3a5f"/>
+  <path d="M190 170 L232 230 L214 246 L196 222 L172 246 L162 214 Z" fill="#f3e6c8"/>
+  <path d="M262 186 L292 230 L276 238 L262 222 L246 236 L244 212 Z" fill="#f3e6c8"/>
+  <path d="M58 454 L58 410 Q160 384 256 408 Q360 432 454 400 L454 454 Z" fill="#b8452f"/>
+</svg>

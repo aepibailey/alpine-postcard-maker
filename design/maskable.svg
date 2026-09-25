@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable variant: full-bleed art, key shapes inside the central safe zone. -->
+  <rect width="512" height="512" fill="#e9a25f"/>
+  <circle cx="310" cy="210" r="62" fill="#f6d27a"/>
+  <path d="M0 400 L200 170 L240 226 L270 188 L390 350 L512 280 L512 512 L0 512 Z" fill="#1f3a5f"/>
+  <path d="M200 170 L240 226 L222 242 L204 218 L180 242 L172 210 Z" fill="#f3e6c8"/>
+  <path d="M270 188 L300 230 L284 238 L270 222 L254 236 L252 214 Z" fill="#f3e6c8"/>
+  <path d="M0 512 L0 430 Q140 396 256 424 Q380 452 512 414 L512 512 Z" fill="#b8452f"/>
+</svg>
