@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { PALETTES } from '../../src/palettes.js';
 
-const SHOTS = 'docs/screenshots/m2';
+const SHOTS = 'docs/screenshots/m3';
 const posterMarkup = (page) => page.locator('#preview').innerHTML();
 
 test('picker switches between the four mountains', async ({ page }) => {
@@ -71,19 +71,47 @@ test('time of day recolours the whole poster', async ({ page }) => {
     for (const ink of [PALETTES[time].sky[0], PALETTES[time].peak, PALETTES[time].snow]) expect(markup).toContain(ink);
     expect(markup.includes('-moon')).toBe(time === 'night');
     await expect(page.locator('#peak-label')).toContainText(name);
-    await page.screenshot({ path: `${SHOTS}/app-${time}.png` });
   }
 });
 
-test('the chosen mountain and time are remembered after reopening', async ({ page }) => {
+test('scenery switches add and remove layers', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => document.fonts.ready);
+  const preview = page.locator('#preview');
+  // Start from a clean slate: everything off.
+  for (const name of ['Village', 'Hut', 'Gondola', 'Forest', 'Lake', 'Skier']) {
+    const button = page.getByRole('button', { name });
+    if (await button.getAttribute('aria-pressed') === 'true') await button.click();
+  }
+  await expect(preview).toHaveAttribute('data-layers', '');
+  const seen = new Set([await preview.innerHTML()]);
+  for (const [name, layer] of [['Lake', 'lake'], ['Village', 'village'], ['Hut', 'hut'], ['Forest', 'forest'], ['Gondola', 'gondola'], ['Skier', 'skier']]) {
+    await page.getByRole('button', { name }).click();
+    await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+    await expect(preview).toHaveAttribute('data-layers', new RegExp(layer));
+    seen.add(await preview.innerHTML());
+  }
+  expect(seen.size).toBe(7);
+  await page.screenshot({ path: `${SHOTS}/app-everything.png` });
+
+  await page.getByRole('button', { name: 'Lake' }).click();
+  await expect(page.getByRole('button', { name: 'Lake' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(preview).not.toHaveAttribute('data-layers', /lake/);
+  await page.screenshot({ path: `${SHOTS}/app-no-lake.png` });
+});
+
+test('mountain, time and scenery are remembered after reopening', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('radio', { name: 'Random ridgeline' }).click();
   await page.getByRole('radio', { name: 'Starry night' }).click();
+  await page.getByRole('button', { name: 'Gondola' }).click();
+  const layers = await page.locator('#preview').getAttribute('data-layers');
   const seed = await page.locator('#preview').getAttribute('data-seed');
   await page.reload();
   await expect(page.locator('#preview')).toHaveAttribute('data-peak', 'random');
   await expect(page.locator('#preview')).toHaveAttribute('data-seed', seed);
   await expect(page.locator('#preview')).toHaveAttribute('data-time', 'night');
+  await expect(page.locator('#preview')).toHaveAttribute('data-layers', layers);
 });
 
 test('editor and fonts work offline', async ({ page, context }) => {
@@ -101,13 +129,20 @@ test('editor and fonts work offline', async ({ page, context }) => {
   expect(loaded).toBe(true);
 });
 
-test('full-size posters for review: every time of day', async ({ browser }) => {
+test('full-size posters for review: scenery combinations', async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1800 }, deviceScaleFactor: 1 });
-  const shots = [['spire', 0, 'dawn'], ['spire', 0, 'midday'], ['spire', 0, 'alpenglow'], ['spire', 0, 'night'], ['random', 44, 'dawn'], ['massif', 0, 'night']];
-  for (const [peak, seed, time] of shots) {
-    await page.goto(`tests/e2e/pages/poster.html?i=0&peak=${peak}&seed=${seed}&time=${time}`);
+  const shots = [
+    ['spire', 'alpenglow', 'village,forest'],
+    ['massif', 'midday', 'village,hut,gondola,forest,lake'],
+    ['pyramid', 'night', 'skier,gondola,forest'],
+    ['random', 'dawn', 'village,hut,forest,skier'],
+    ['spire', 'night', 'lake,village,forest'],
+    ['massif', 'alpenglow', 'lake,hut,skier'],
+  ];
+  for (const [peak, time, layers] of shots) {
+    await page.goto(`tests/e2e/pages/poster.html?i=0&peak=${peak}&seed=44&time=${time}&layers=${layers}`);
     await page.waitForSelector('body[data-ready="true"]');
-    await page.screenshot({ path: `${SHOTS}/poster-${peak}${seed ? `-${seed}` : ''}-${time}.png` });
+    await page.screenshot({ path: `${SHOTS}/poster-${peak}-${time}-${layers.replaceAll(',', '-')}.png` });
   }
   await page.close();
 });

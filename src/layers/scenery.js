@@ -41,35 +41,22 @@ function church(p, { x, y, window = p.ink, roof = p.accent }) {
     `<rect x="${x + 70}" y="${y - 60}" width="18" height="30" rx="9" fill="${window}"/>`;
 }
 
-// Village on a rolling hill: rooftops stepping down the slope, church on the right.
-export function village(p, rng, { horizon = 1150, lit = false } = {}) {
-  // Windows glow at night; by day they are dark panes.
+// The village buildings: rooftops stepping across a slope, church on the right.
+// Windows glow at night; by day they are dark panes.
+export function village(p, { lit = false } = {}) {
   const window = lit ? p.accent : p.fore;
   const roof = lit ? p.wood : p.accent;
-  const hill = `<path d="M0,${horizon + 40} C300,${horizon - 20} 700,${horizon + 30} 1200,${horizon + 10} L1200,1800 L0,1800 Z" fill="${p.mid}"/>`;
   const houses = [
     { x: 250, y: 1262, w: 70, h: 60 }, { x: 345, y: 1250, w: 90, h: 72 }, { x: 460, y: 1256, w: 64, h: 54 },
     { x: 300, y: 1318, w: 96, h: 76 }, { x: 420, y: 1320, w: 78, h: 64 }, { x: 530, y: 1312, w: 100, h: 82 },
     { x: 650, y: 1300, w: 70, h: 58 },
   ].map((h) => house(p, { ...h, window, roof })).join('');
-  const lower = `<path d="M0,1420 C260,1370 520,1440 820,1400 C980,1380 1100,1400 1200,1390 L1200,1800 L0,1800 Z" fill="${p.fore}"/>`;
-  // A lane winding down from the village toward the viewer, and a low stone wall beside it.
-  const lane = `<path d="M565,1330 C520,1400 640,1440 590,1510 C530,1590 360,1640 380,1800 L640,1800 C600,1660 720,1580 700,1500 C680,1430 600,1400 625,1330 Z" fill="${lit ? p.snowShadow : p.mid}"/>`;
-  return hill +
-    forest(p, rng, { x0: 40, x1: 230, baseY: 1260, minH: 80, maxH: 130, color: p.fore }) +
-    forest(p, rng, { x0: 900, x1: 1180, baseY: 1250, minH: 70, maxH: 120, color: p.fore }) +
-    houses + church(p, { x: 730, y: 1320, window, roof }) +
-    lower + lane +
-    forest(p, rng, { x0: 20, x1: 260, baseY: 1460, minH: 180, maxH: 260, color: p.fore, density: 0.9 }) +
-    forest(p, rng, { x0: 960, x1: 1200, baseY: 1450, minH: 170, maxH: 250, color: p.fore, density: 0.9 });
+  return houses + church(p, { x: 730, y: 1320, window, roof });
 }
 
 // A forested foothill ridge standing in front of the main peak.
-export function foothills(p, rng, { horizon = 1150, color = p.fore } = {}) {
-  const ridge = `<path d="M0,${horizon - 90} C200,${horizon - 150} 420,${horizon - 60} 620,${horizon - 70} C820,${horizon - 80} 1000,${horizon - 160} 1200,${horizon - 110} L1200,${horizon + 40} L0,${horizon + 40} Z" fill="${color}"/>`;
-  return ridge +
-    forest(p, rng, { x0: 10, x1: 380, baseY: horizon - 100, minH: 50, maxH: 80, color, density: 1.3 }) +
-    forest(p, rng, { x0: 880, x1: 1190, baseY: horizon - 120, minH: 50, maxH: 90, color, density: 1.3 });
+export function foothills(p, { horizon = 1150, color = p.fore } = {}) {
+  return `<path d="M0,${horizon - 90} C200,${horizon - 150} 420,${horizon - 60} 620,${horizon - 70} C820,${horizon - 80} 1000,${horizon - 160} 1200,${horizon - 110} L1200,${horizon + 40} L0,${horizon + 40} Z" fill="${color}"/>`;
 }
 
 // Still lake with ripple lines; the reflection itself is drawn by the poster (it needs the peak).
@@ -94,8 +81,9 @@ export function hut(p, { x, y, s = 1 }) {
 
 // A lone skier carving down the slope, with the trail behind.
 export function skier(p, { x, y, s = 1, color = p.ink, trail = p.snowShadow }) {
-  const trailPath = `<path d="M${x - 40},${y + 70} C${x - 200},${y + 20} ${x - 180},${y - 120} ${x - 380},${y - 190}" stroke="${trail}" stroke-width="7" fill="none" stroke-linecap="round"/>` +
-    `<path d="M${x - 30},${y + 84} C${x - 190},${y + 36} ${x - 170},${y - 104} ${x - 370},${y - 174}" stroke="${trail}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+  const t = (dx, dy) => `${x + dx * s},${y + dy * s}`;
+  const trailPath = `<path d="M${t(-40, 70)} C${t(-200, 20)} ${t(-180, -120)} ${t(-380, -190)}" stroke="${trail}" stroke-width="7" fill="none" stroke-linecap="round"/>` +
+    `<path d="M${t(-30, 84)} C${t(-190, 36)} ${t(-170, -104)} ${t(-370, -174)}" stroke="${trail}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
   const line = (d, w, c = color) => `<path d="${d}" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
   const figure = `<g transform="translate(${x},${y}) scale(${s}) rotate(8)">` +
     line('M-70,70 L85,86', 7) +
@@ -112,16 +100,17 @@ export function skier(p, { x, y, s = 1, color = p.ink, trail = p.snowShadow }) {
 }
 
 // Cable, one pylon and a single lit cabin.
-export function gondola(p, { from, to, t = 0.4, color = p.fore }) {
+export function gondola(p, { from, to, t = 0.4, pylonAt = 0.78, groundY, color = p.fore }) {
   const [x0, y0] = from;
   const [x1, y1] = to;
   const cx = x0 + (x1 - x0) * t;
   const cy = y0 + (y1 - y0) * t;
-  const px = x0 + (x1 - x0) * 0.78;
-  const py = y0 + (y1 - y0) * 0.78;
+  const px = x0 + (x1 - x0) * pylonAt;
+  const py = y0 + (y1 - y0) * pylonAt;
+  const pylonH = groundY ? groundY - py : 260;
   return `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${color}" stroke-width="4"/>` +
     `<line x1="${x0}" y1="${y0 + 16}" x2="${x1}" y2="${y1 + 16}" stroke="${color}" stroke-width="2"/>` +
-    polygon([[px - 8, py], [px + 8, py], [px + 22, py + 260], [px - 22, py + 260]], color) +
+    polygon([[px - 8, py], [px + 8, py], [px + 22, py + pylonH], [px - 22, py + pylonH]], color) +
     `<rect x="${px - 40}" y="${py - 6}" width="80" height="12" fill="${color}"/>` +
     `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy + 40}" stroke="${color}" stroke-width="5"/>` +
     `<rect x="${cx - 36}" y="${cy + 40}" width="72" height="56" rx="8" fill="${color}"/>` +
