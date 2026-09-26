@@ -100,20 +100,20 @@ test('scenery switches add and remove layers', async ({ page }) => {
 
 test('typing a destination and tagline updates the poster', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Destination').fill('Zermatt');
-  await page.getByLabel('Tagline').fill('Ski the high valley');
+  await page.getByRole('textbox', { name: 'Destination' }).fill('Zermatt');
+  await page.getByRole('textbox', { name: 'Tagline' }).fill('Ski the high valley');
   const lettering = page.locator('#preview [data-role="lettering"]');
   await expect(lettering.first()).toHaveText('ZERMATT');
   await expect(lettering.nth(1)).toHaveText('SKI THE HIGH VALLEY');
   await expect(page.getByRole('img', { name: 'Zermatt poster' })).toBeVisible();
   // The fields stop at their limits.
-  await page.getByLabel('Destination').fill('A'.repeat(40));
-  await expect(page.getByLabel('Destination')).toHaveValue('A'.repeat(24));
+  await page.getByRole('textbox', { name: 'Destination' }).fill('A'.repeat(40));
+  await expect(page.getByRole('textbox', { name: 'Destination' })).toHaveValue('A'.repeat(24));
 });
 
 test('typeface and placement pickers restyle the title', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Destination').fill('Zermatt');
+  await page.getByRole('textbox', { name: 'Destination' }).fill('Zermatt');
   await page.evaluate(() => document.fonts.ready);
   const preview = page.locator('#preview');
   for (const [name, font, family] of [['Poiret One', 'poiret', 'Poiret One'], ['Bebas Neue', 'bebas', 'Bebas Neue'], ['Josefin Sans', 'josefin', 'Josefin Sans'], ['Limelight', 'limelight', 'Limelight']]) {
@@ -133,7 +133,7 @@ test('long names stay inside the poster in every typeface and placement', async 
   await page.goto('./');
   await page.evaluate(() => document.fonts.ready);
   for (const title of ['Grindelwald-Wengen Ski', 'WWWWWWWWWWWWWWWWWWWWWWWW', 'Mmmmmmmmmmmmmmmmmmmmmmmm']) {
-    await page.getByLabel('Destination').fill(title);
+    await page.getByRole('textbox', { name: 'Destination' }).fill(title);
     for (const font of ['Limelight', 'Poiret One', 'Bebas Neue', 'Josefin Sans']) {
       await page.getByRole('radio', { name: font }).click();
       for (const layout of ['Top', 'Bottom', 'Arched', 'Banner']) {
@@ -170,7 +170,7 @@ test('all choices are remembered after reopening', async ({ page }) => {
   await page.getByRole('radio', { name: 'Random ridgeline' }).click();
   await page.getByRole('radio', { name: 'Starry night' }).click();
   await page.getByRole('button', { name: 'Gondola' }).click();
-  await page.getByLabel('Destination').fill('Saas Fee');
+  await page.getByRole('textbox', { name: 'Destination' }).fill('Saas Fee');
   await page.getByRole('radio', { name: 'Bebas Neue' }).click();
   await page.getByRole('radio', { name: 'Arched' }).click();
   await page.getByRole('radio', { name: 'Aged paper' }).click();
@@ -181,7 +181,7 @@ test('all choices are remembered after reopening', async ({ page }) => {
   await expect(page.locator('#preview')).toHaveAttribute('data-seed', seed);
   await expect(page.locator('#preview')).toHaveAttribute('data-time', 'night');
   await expect(page.locator('#preview')).toHaveAttribute('data-layers', layers);
-  await expect(page.getByLabel('Destination')).toHaveValue('Saas Fee');
+  await expect(page.getByRole('textbox', { name: 'Destination' })).toHaveValue('Saas Fee');
   await expect(page.locator('#preview')).toHaveAttribute('data-font', 'bebas');
   await expect(page.locator('#preview')).toHaveAttribute('data-layout', 'arched');
   await expect(page.locator('#preview')).toHaveAttribute('data-style', 'aged');

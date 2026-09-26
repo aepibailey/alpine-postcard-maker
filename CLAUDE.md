@@ -28,7 +28,10 @@ The full roadmap and milestone list live in `docs/PLAN.md`.
   (`src/styles/*`). Colors always come from the active palette (`src/palettes.js`).
 - Randomness uses the seeded RNG (`src/rng.js`) so posters re-render identically.
 - Storage: IndexedDB (`src/gallery-db.js`) + `navigator.storage.persist()`;
-  backup/restore as a single JSON file (`src/backup.js`).
+  backup/restore as a single JSON file (`src/backup.js`). `src/store.js` autosaves:
+  every edit goes to a localStorage mirror at once (crash-safe), then into the gallery
+  after a short debounce; saves are queued and never overwrite a newer copy.
+- Always pass saved/imported recipes through `normalizeRecipe()` (`src/recipe.js`).
 - Export via `navigator.share({ files })`, fallback to download.
 - When changing any shipped file, bump `VERSION` in `src/version.js`, `CACHE` in
   `sw.js`, and `version` in `package.json` together, and keep `PRECACHE` complete

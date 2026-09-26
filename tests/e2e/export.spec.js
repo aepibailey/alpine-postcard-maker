@@ -22,7 +22,7 @@ async function exportAs(page, sizeName) {
 
 test('each export size saves a PNG at exactly the right size', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Destination').fill('Zermatt');
+  await page.getByRole('textbox', { name: 'Destination' }).fill('Zermatt');
   const screen = await page.evaluate(() => ({
     width: Math.round(Math.min(screen.width, screen.height) * devicePixelRatio),
     height: Math.round(Math.max(screen.width, screen.height) * devicePixelRatio),
@@ -135,7 +135,7 @@ test('Fill extends the scenery edge to edge; Mat keeps the cream border', async 
 
 test('the Mat / Fill choice is used for saved files and remembered', async ({ page }) => {
   await page.goto('./');
-  await page.getByLabel('Destination').fill('Zermatt');
+  await page.getByRole('textbox', { name: 'Destination' }).fill('Zermatt');
   await page.getByRole('radio', { name: 'Fill the screen' }).click();
   const { path, name } = await exportAs(page, 'Phone wallpaper');
   expect(name).toBe('zermatt-wallpaper-fill.png');

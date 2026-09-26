@@ -100,7 +100,7 @@ function extendEdges(ctx, canvas, { x, y, w, h }, inset) {
 }
 
 // Recipe → PNG Blob at the requested size.
-export async function exportPoster(recipe, { width, height, embedFonts = true, fit = 'mat' } = {}) {
+export async function exportPoster(recipe, { width, height, embedFonts = true, fit = 'mat', type = 'image/png', quality } = {}) {
   const scale = Math.min(width / POSTER_WIDTH, height / POSTER_HEIGHT);
   const w = Math.round(POSTER_WIDTH * scale);
   const h = Math.round(POSTER_HEIGHT * scale);
@@ -134,7 +134,7 @@ export async function exportPoster(recipe, { width, height, embedFonts = true, f
   }
 
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not create image'))), 'image/png'));
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not create image'))), type, quality));
 }
 
 export function fileName(recipe, sizeKey) {

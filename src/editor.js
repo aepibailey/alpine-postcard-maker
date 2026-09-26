@@ -1,4 +1,3 @@
-import { SAMPLES } from './samples.js';
 import { renderPoster } from './poster.js';
 import { PEAK_KINDS, peakShape } from './layers/mountains.js';
 import { PALETTES } from './palettes.js';
@@ -6,7 +5,7 @@ import { polygon } from './svg.js';
 import { SCENERY } from './scene.js';
 import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
 import { PRINT_STYLES } from './styles/print.js';
-import { startExport } from './export-ui.js';
+import { MAX_TITLE, MAX_TAGLINE, randomSeed } from './recipe.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
@@ -16,48 +15,6 @@ const SCENERY_LABELS = { village: '🏘️ Village', hut: '🛖 Hut', gondola: '
 const LAYOUT_LABELS = { top: 'Top', bottom: 'Bottom', arched: 'Arched', banner: 'Banner' };
 const FONT_LABELS = Object.fromEntries(Object.entries(TYPEFACES).map(([key, face]) => [key, face.label]));
 const STYLE_LABELS = { flat: 'Flat', screenprint: 'Screen print', aged: 'Aged paper' };
-const MAX_TITLE = 24;
-const MAX_TAGLINE = 40;
-const STORE_KEY = 'apm.editor';
-
-// The poster being edited. Scene and lettering stay fixed until later milestones add controls.
-const { sun: _fixedSun, scene: _fixedScene, ...base } = SAMPLES[0];
-const state = {
-  ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow',
-  layers: { village: true, hut: false, gondola: false, forest: true, lake: false, skier: false },
-  lettering: { title: 'Hochwald', tagline: 'Evening on the high peaks', layout: 'top', font: 'limelight' },
-  style: 'flat',
-};
-
-function newSeed() {
-  return 1 + Math.floor(Math.random() * 999998);
-}
-
-// Remembering the last choices is a convenience only; the app works without storage.
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null');
-    if (!saved) return;
-    if (PEAK_KINDS.includes(saved.peak)) state.peak = saved.peak;
-    if (Number.isInteger(saved.peakSeed)) state.peakSeed = saved.peakSeed;
-    if (TIMES.includes(saved.time)) state.time = saved.time;
-    if (saved.layers) for (const name of SCENERY) if (typeof saved.layers[name] === 'boolean') state.layers[name] = saved.layers[name];
-    const l = saved.lettering ?? {};
-    if (typeof l.title === 'string') state.lettering.title = l.title.slice(0, MAX_TITLE);
-    if (typeof l.tagline === 'string') state.lettering.tagline = l.tagline.slice(0, MAX_TAGLINE);
-    if (LAYOUTS.includes(l.layout)) state.lettering.layout = l.layout;
-    if (TYPEFACES[l.font]) state.lettering.font = l.font;
-    if (PRINT_STYLES.includes(saved.style)) state.style = saved.style;
-  } catch { /* ignore */ }
-}
-
-function save() {
-  try {
-    const { peak, peakSeed, time, layers, lettering, style } = state;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ peak, peakSeed, time, layers, lettering, style }));
-  } catch { /* ignore */ }
-}
-
 // Small silhouette of a peak for its picker button.
 function peakIcon(kind, seed) {
   const shape = peakShape(kind, seed);
@@ -118,7 +75,9 @@ function radioGroup(container, options, label, short, icon) {
   return [...container.querySelectorAll('button')];
 }
 
-export function startEditor() {
+// Builds the editor controls. Returns { load(recipe), current() }; onChange(recipe) runs after every edit.
+export function startEditor({ onChange = () => {} } = {}) {
+  let state = null;
   const preview = document.getElementById('preview');
   const label = document.getElementById('peak-label');
   const peakPicker = document.getElementById('peak-picker');
@@ -131,8 +90,6 @@ export function startEditor() {
   const layoutPicker = document.getElementById('layout-picker');
   const stylePicker = document.getElementById('style-picker');
 
-  load();
-
   const peakButtons = radioGroup(peakPicker, PEAK_KINDS, PEAK_LABELS, PEAK_SHORT);
   const timeButtons = radioGroup(timePicker, TIMES, TIME_LABELS, TIME_LABELS, timeIcon);
   sceneryPicker.innerHTML = SCENERY.map((name) =>
@@ -143,11 +100,10 @@ export function startEditor() {
   const styleButtons = radioGroup(stylePicker, PRINT_STYLES, STYLE_LABELS, STYLE_LABELS, styleIcon);
   titleInput.maxLength = MAX_TITLE;
   taglineInput.maxLength = MAX_TAGLINE;
-  titleInput.value = state.lettering.title;
-  taglineInput.value = state.lettering.tagline;
 
   function render() {
-    preview.innerHTML = renderPoster(state);
+    preview.innerHTML = renderPoster(state, { id: 'preview' });
+    preview.dataset.posterId = state.id;
     preview.dataset.peak = state.peak;
     preview.dataset.seed = String(state.peakSeed);
     preview.dataset.time = state.time;
@@ -167,12 +123,17 @@ export function startEditor() {
     for (const button of styleButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.style));
     preview.dataset.style = state.style;
     roll.hidden = state.peak !== 'random';
-    save();
+  }
+
+  // Every edit: redraw, then tell the app so it can save.
+  function changed() {
+    render();
+    onChange(state);
   }
 
   function choosePeak(kind) {
     state.peak = kind;
-    render();
+    changed();
   }
 
   peakPicker.addEventListener('click', (event) => {
@@ -184,47 +145,47 @@ export function startEditor() {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.time = button.dataset.value;
-    render();
+    changed();
   });
 
   sceneryPicker.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-layer]');
     if (!button) return;
     state.layers[button.dataset.layer] = !state.layers[button.dataset.layer];
-    render();
+    changed();
   });
 
   titleInput.addEventListener('input', () => {
     state.lettering.title = titleInput.value;
-    render();
+    changed();
   });
   taglineInput.addEventListener('input', () => {
     state.lettering.tagline = taglineInput.value;
-    render();
+    changed();
   });
   fontPicker.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.lettering.font = button.dataset.value;
-    render();
+    changed();
   });
   layoutPicker.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.lettering.layout = button.dataset.value;
-    render();
+    changed();
   });
 
   stylePicker.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.style = button.dataset.value;
-    render();
+    changed();
   });
 
   roll.addEventListener('click', () => {
-    state.peakSeed = newSeed();
-    render();
+    state.peakSeed = randomSeed();
+    changed();
   });
 
   // Horizontal swipe on the poster steps through the mountains.
@@ -241,6 +202,14 @@ export function startEditor() {
   });
   preview.addEventListener('pointercancel', () => { start = null; });
 
-  render();
-  startExport(() => structuredClone(state));
+  return {
+    // Show a poster (a normalized recipe) in the editor.
+    load(recipe) {
+      state = structuredClone(recipe);
+      titleInput.value = state.lettering.title;
+      taglineInput.value = state.lettering.tagline;
+      render();
+    },
+    current: () => structuredClone(state),
+  };
 }

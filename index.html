@@ -18,8 +18,28 @@
     <h1>Alpine Postcard Maker</h1>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="edit-tab" aria-selected="true" aria-controls="edit-view">✏️ Edit</button>
+    <button type="button" role="tab" id="gallery-tab" aria-selected="false" aria-controls="gallery-view">🖼️ Gallery (<span id="gallery-count">0</span>)</button>
+    <button type="button" class="new-button" id="new-button">+ New</button>
+  </nav>
+
   <main>
-    <section class="editor" aria-label="Poster editor">
+    <section class="gallery" id="gallery-view" role="tabpanel" aria-labelledby="gallery-tab" hidden>
+      <h2 class="picker-heading">Your posters</h2>
+      <p class="hint" id="storage-status"></p>
+      <div class="gallery-grid" id="gallery-grid"></div>
+      <p class="export-status" id="gallery-status" aria-live="polite"></p>
+      <h2 class="picker-heading">Backup</h2>
+      <div class="export-actions">
+        <button type="button" class="action-button" id="backup-button">Back up gallery</button>
+        <button type="button" class="action-button secondary" id="restore-button">Restore…</button>
+      </div>
+      <p class="hint">A backup is one file in your Downloads. Keep a copy somewhere safe, e.g. Google Drive.</p>
+      <input type="file" id="restore-input" accept=".json,application/json" hidden>
+    </section>
+
+    <section class="editor" id="edit-view" role="tabpanel" aria-labelledby="edit-tab" aria-label="Poster editor">
       <figure class="poster-frame" id="preview" aria-live="polite"></figure>
       <p class="peak-label" id="peak-label"></p>
       <h2 class="picker-heading" id="size-heading">Save your poster</h2>
