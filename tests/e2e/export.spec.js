@@ -99,3 +99,60 @@ test('export works offline, fonts included', async ({ page, context }) => {
   const { path } = await exportAs(page, '10×15 print');
   expect(await pngSize(path)).toEqual({ width: 1200, height: 1800 });
 });
+
+test('Fill extends the scenery edge to edge; Mat keeps the cream border', async ({ page }) => {
+  await page.goto('./');
+  const corners = await page.evaluate(async () => {
+    const { exportPoster } = await import(new URL('src/export.js', document.baseURI).href);
+    const { SAMPLES } = await import(new URL('src/samples.js', document.baseURI).href);
+    const { PALETTES } = await import(new URL('src/palettes.js', document.baseURI).href);
+    const recipe = { ...SAMPLES[0], sun: undefined, time: 'midday', style: 'flat' };
+    const pixel = async (fit, width, height, x, y) => {
+      const bitmap = await createImageBitmap(await exportPoster(recipe, { width, height, fit }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+      return { size: [bitmap.width, bitmap.height], rgb: `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}` };
+    };
+    return {
+      paper: PALETTES.midday.paper,
+      sky: PALETTES.midday.sky[0],
+      fore: PALETTES.midday.fore,
+      matTop: await pixel('mat', 720, 1600, 10, 10),
+      fillTop: await pixel('fill', 720, 1600, 10, 10),
+      fillBottom: await pixel('fill', 720, 1600, 10, 1590),
+      fillSquareSide: await pixel('fill', 1080, 1080, 5, 20),
+    };
+  });
+  const near = (a, b) => [1, 3, 5].every((i) => Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)) <= 12);
+  expect(corners.matTop.size).toEqual([720, 1600]);
+  expect(near(corners.matTop.rgb, corners.paper), `mat corner ${corners.matTop.rgb}`).toBe(true);
+  expect(near(corners.fillTop.rgb, corners.sky), `fill top ${corners.fillTop.rgb} vs sky ${corners.sky}`).toBe(true);
+  expect(near(corners.fillBottom.rgb, corners.fore), `fill bottom ${corners.fillBottom.rgb} vs ground ${corners.fore}`).toBe(true);
+  expect(near(corners.fillSquareSide.rgb, corners.paper), 'square fill side should be sky, not paper').toBe(false);
+});
+
+test('the Mat / Fill choice is used for saved files and remembered', async ({ page }) => {
+  await page.goto('./');
+  await page.getByLabel('Destination').fill('Zermatt');
+  await page.getByRole('radio', { name: 'Fill the screen' }).click();
+  const { path, name } = await exportAs(page, 'Phone wallpaper');
+  expect(name).toBe('zermatt-wallpaper-fill.png');
+  expect(await pngSize(path)).toEqual({ width: 1440, height: 3200 });
+  await copyFile(path, `${SHOTS}/export-wallpaper-fill.png`);
+  const square = await exportAs(page, 'Square post');
+  await copyFile(square.path, `${SHOTS}/export-square-fill.png`);
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Fill the screen' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('review exports: fill with each print style', async ({ page }) => {
+  await page.goto('./');
+  for (const [style, name] of [['Screen print', 'screenprint'], ['Aged paper', 'aged']]) {
+    await page.getByRole('radio', { name: style }).click();
+    await page.getByRole('radio', { name: 'Fill the screen' }).click();
+    const { path } = await exportAs(page, 'Match my screen');
+    await copyFile(path, `${SHOTS}/export-screen-fill-${name}.png`);
+  }
+});

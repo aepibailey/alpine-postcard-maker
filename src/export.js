@@ -1,4 +1,5 @@
-import { renderPoster, POSTER_WIDTH, POSTER_HEIGHT } from './poster.js';
+import { renderPoster, POSTER_WIDTH, POSTER_HEIGHT, styleOf } from './poster.js';
+import { printStyle } from './styles/print.js';
 import { PALETTES } from './palettes.js';
 import { letteringOf, TYPEFACES } from './layers/lettering.js';
 
@@ -17,6 +18,9 @@ export function screenSize(win = globalThis) {
   const b = Math.round(win.screen.height * dpr);
   return { width: Math.min(a, b), height: Math.max(a, b) };
 }
+
+// How a poster fills a shape other than 2:3: on a cream mat, or with its scenery extended edge to edge.
+export const FITS = { mat: 'Cream mat', fill: 'Fill the screen' };
 
 export function sizeFor(key, win = globalThis) {
   return key === 'screen' ? screenSize(win) : EXPORT_SIZES[key];
@@ -67,34 +71,70 @@ function loadImage(url) {
   });
 }
 
+const svgUrl = (svg) => URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+
+async function drawSvg(ctx, svg, x, y, w, h) {
+  const url = svgUrl(svg);
+  try {
+    ctx.drawImage(await loadImage(url), x, y, w, h);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Extend the edges of the poster (drawn at x, y, w, h) out to the whole canvas by stretching its
+// outermost pixels: the sky continues upward, the ground (and any lane) downward, the scenery sideways.
+// The poster is drawn without texture in this mode, so stretched pixels stay clean. Pixels are taken a
+// little way in from the edge, because the screen-print wobble leaves the outermost ones ragged.
+function extendEdges(ctx, canvas, { x, y, w, h }, inset) {
+  const W = canvas.width;
+  const H = canvas.height;
+  if (y > 0) {
+    ctx.drawImage(canvas, x, y + inset, w, 1, 0, 0, W, y + inset);
+    ctx.drawImage(canvas, x, y + h - inset - 1, w, 1, 0, y + h - inset, W, H - y - h + inset);
+  }
+  if (x > 0) {
+    ctx.drawImage(canvas, x + inset, y, 1, h, 0, y, x + inset, h);
+    ctx.drawImage(canvas, x + w - inset - 1, y, 1, h, x + w - inset, y, W - x - w + inset, h);
+  }
+}
+
 // Recipe → PNG Blob at the requested size.
-export async function exportPoster(recipe, { width, height, embedFonts = true } = {}) {
+export async function exportPoster(recipe, { width, height, embedFonts = true, fit = 'mat' } = {}) {
   const scale = Math.min(width / POSTER_WIDTH, height / POSTER_HEIGHT);
   const w = Math.round(POSTER_WIDTH * scale);
   const h = Math.round(POSTER_HEIGHT * scale);
+  const x = Math.round((width - w) / 2);
+  const y = Math.round((height - h) / 2);
+  const fill = fit === 'fill' && (w < width || h < height);
 
-  let svg = renderPoster(recipe, { id: 'export' })
+  let svg = renderPoster(recipe, { id: 'export', frame: !fill, overlay: !fill })
     .replace('<svg ', `<svg width="${w}" height="${h}" `);
   if (embedFonts) {
     const css = await embeddedFontCss(fontsUsed(recipe));
     svg = svg.replace(/(<svg [^>]*>)/, `$1<style>${css}</style>`);
   }
 
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-  try {
-    const img = await loadImage(url);
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = PALETTES[recipe.time]?.paper ?? '#f3e6c8';
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, Math.round((width - w) / 2), Math.round((height - h) / 2), w, h);
-    return await new Promise((resolve, reject) =>
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not create image'))), 'image/png'));
-  } finally {
-    URL.revokeObjectURL(url);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const p = PALETTES[recipe.time] ?? PALETTES.alpenglow;
+  ctx.fillStyle = p.paper;
+  ctx.fillRect(0, 0, width, height);
+  await drawSvg(ctx, svg, x, y, w, h);
+
+  if (fill) {
+    extendEdges(ctx, canvas, { x, y, w, h }, Math.ceil(10 * scale));
+    // The print texture goes over the whole image, so the extended edges match the poster.
+    const print = printStyle(styleOf(recipe), p, { id: 'fill', seed: recipe.seed, width, height });
+    if (print.overlay) {
+      await drawSvg(ctx, `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${print.defs}</defs>${print.overlay}</svg>`, 0, 0, width, height);
+    }
   }
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not create image'))), 'image/png'));
 }
 
 export function fileName(recipe, sizeKey) {

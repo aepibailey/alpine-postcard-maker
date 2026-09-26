@@ -20,8 +20,12 @@ const CELESTIAL = {
   night: { x: 900, y: 420, r: 80 },
 };
 
+export const styleOf = (recipe) => (PRINT_STYLES.includes(recipe.style) ? recipe.style : 'flat');
+
 // Recipe → complete poster SVG markup. `id` keeps clip/mask ids unique when several posters share a page.
-export function renderPoster(recipe, { id = recipe.id } = {}) {
+// Exports that fill a whole screen draw the poster without its paper border (frame: false) and add
+// the print texture over the whole image themselves (overlay: false).
+export function renderPoster(recipe, { id = recipe.id, frame = true, overlay = true } = {}) {
   const p = PALETTES[recipe.time];
   const rng = createRng(recipe.seed);
   const body = { ...CELESTIAL[recipe.time], ...recipe.sun };
@@ -29,7 +33,7 @@ export function renderPoster(recipe, { id = recipe.id } = {}) {
     ? stars(p, rng, { count: 80, bottom: 1000 }) + moon(p, { id, ...body })
     : sun(p, body);
 
-  const style = PRINT_STYLES.includes(recipe.style) ? recipe.style : 'flat';
+  const style = styleOf(recipe);
   const print = printStyle(style, p, { id, seed: recipe.seed });
   const art = sky(p, { horizon: HORIZON }) +
     celestial +
@@ -41,7 +45,7 @@ export function renderPoster(recipe, { id = recipe.id } = {}) {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}" role="img" aria-label="${escapeText(recipe.lettering?.title || 'Untitled')} poster" data-style="${style}">` +
     (print.defs ? `<defs>${print.defs}</defs>` : '') +
-    wrap(print.posterFilter, wrap(print.artFilter, art) + border(p)) +
-    print.overlay +
+    wrap(print.posterFilter, wrap(print.artFilter, art) + (frame ? border(p) : '')) +
+    (overlay ? print.overlay : '') +
     `</svg>`;
 }
