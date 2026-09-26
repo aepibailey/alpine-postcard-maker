@@ -36,23 +36,30 @@ function textAttrs(face, size, fill) {
   return `text-anchor="middle" font-family="${face.family}" font-size="${size}" font-weight="${face.weight}" letter-spacing="${spacing}" fill="${fill}"${stroke}`;
 }
 
-function line(str, face, { x = 600, y, fill, size = face.size, maxWidth = 1040 }) {
+// `halo`: an outline in another ink behind the words, for lettering over a busy photo.
+function line(str, face, { x = 600, y, fill, halo, size = face.size, maxWidth = 1040 }) {
   if (!str) return '';
   const fitted = fitSize(str, face, maxWidth, size);
-  return `<text x="${x}" y="${y}" ${textAttrs(face, fitted, fill)}${lengthAttrs(str, face, fitted, maxWidth)} data-role="lettering">${escapeText(str)}</text>`;
+  const attrs = `x="${x}" y="${y}" ${textAttrs(face, fitted, fill)}${lengthAttrs(str, face, fitted, maxWidth)}`;
+  const outline = halo
+    ? `<text ${attrs.replace(`fill="${fill}"`, `fill="${halo}"`).replace(/ stroke="[^"]*" stroke-width="[^"]*"/, '')} stroke="${halo}" stroke-width="${Math.max(6, Math.round(fitted * 0.16))}" stroke-linejoin="round" aria-hidden="true" data-role="halo">${escapeText(str)}</text>`
+    : '';
+  return `${outline}<text ${attrs} data-role="lettering">${escapeText(str)}</text>`;
 }
 
 const title = (str, face, opts) => line(str, face, opts);
-const tagline = (str, { y, fill, size = 50 }) => line(str, TAGLINE, { y, fill, size });
+const tagline = (str, { y, fill, halo, size = 50 }) => line(str, TAGLINE, { y, fill, halo, size });
 
 // Title bent along a gentle arc across the sky.
-function arched(str, face, { id, fill }) {
+function arched(str, face, { id, fill, halo }) {
   if (!str) return '';
   const arcWidth = 980;
   const size = fitSize(str, face, arcWidth, Math.round(face.size * 0.85));
-  return `<path id="${id}-arc" d="M130,420 Q600,110 1070,420" fill="none"/>` +
-    `<text ${textAttrs(face, size, fill)}${lengthAttrs(str, face, size, arcWidth)} data-role="lettering">` +
+  const text = (colour, extra, role) => `<text ${textAttrs(face, size, colour).replace(/ stroke="[^"]*" stroke-width="[^"]*"/, extra ? '' : '$&')}${lengthAttrs(str, face, size, arcWidth)}${extra} data-role="${role}">` +
     `<textPath href="#${id}-arc" startOffset="50%">${escapeText(str)}</textPath></text>`;
+  return `<path id="${id}-arc" d="M130,420 Q600,110 1070,420" fill="none"/>` +
+    (halo ? text(halo, ` stroke="${halo}" stroke-width="${Math.max(6, Math.round(size * 0.16))}" stroke-linejoin="round" aria-hidden="true"`, 'halo') : '') +
+    text(fill, '', 'lettering');
 }
 
 // A cream banner across the bottom holding the title and tagline.
@@ -84,13 +91,13 @@ export function lettering(recipe, p, id) {
     case 'banner':
       return banner(p, { title: t, tagline: tag, face });
     case 'arched':
-      return arched(t, face, { id, fill: p.title }) + tagline(tag, { y: 1700, fill: p.paper });
+      return arched(t, face, { id, fill: p.title, halo: p.titleHalo }) + tagline(tag, { y: 1700, fill: p.paper, halo: p.paperHalo });
     case 'bottom':
       // A solid ground-coloured band keeps the big title readable over any scenery.
       return `<rect x="0" y="1540" width="1200" height="260" fill="${p.fore}"/>` +
         title(t, face, { y: 1715, fill: p.paper, size: Math.round(face.size * 0.9) }) +
-        tagline(tag, { y: 175, fill: p.title, size: 44 });
+        tagline(tag, { y: 175, fill: p.title, halo: p.titleHalo, size: 44 });
     default:
-      return title(t, face, { y: 290, fill: p.title }) + tagline(tag, { y: 1700, fill: p.paper });
+      return title(t, face, { y: 290, fill: p.title, halo: p.titleHalo }) + tagline(tag, { y: 1700, fill: p.paper, halo: p.paperHalo });
   }
 }

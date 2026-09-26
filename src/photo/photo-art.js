@@ -1,7 +1,7 @@
 import { getPhoto, putPhoto } from '../gallery-db.js';
 import { PALETTES } from '../palettes.js';
-import { posterize } from './posterize.js';
-import { cropToImageData, imageDataToUrl, lightnessRows } from './photo-poster.js';
+import { posterize, toLab, WORK_SIZE } from './posterize.js';
+import { cropToImageData, imageDataToUrl, lightnessRows, autoFrame } from './photo-poster.js';
 
 // Photos for photo posters: kept in IndexedDB on the phone (never uploaded), turned into
 // flat-ink art on demand, with the latest results remembered so typing a title doesn't redo it.
@@ -14,7 +14,21 @@ export class PhotoError extends Error {}
 
 const newPhotoId = () => `ph-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`}`;
 
-// A picked file → a smaller JPEG saved on the phone. Returns its id.
+// A first framing for a photo (an <img>, ImageBitmap or canvas): centred on its main peak.
+export function suggestFrame(source) {
+  const width = source.naturalWidth ?? source.width;
+  const height = source.naturalHeight ?? source.height;
+  const scale = Math.min(1, WORK_SIZE / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const poster = posterize(ctx.getImageData(0, 0, canvas.width, canvas.height), { colors: 5, inks: 'photo', antialias: false });
+  return autoFrame(poster.labels, poster.inks.map((c) => toLab(...c)[0]), width, height);
+}
+
+// A picked file → a smaller JPEG saved on the phone. Returns its id and a first framing ({ x, y }).
 export async function importPhoto(file) {
   let bitmap;
   try {
@@ -32,9 +46,11 @@ export async function importPhoto(file) {
   bitmap.close?.();
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
   if (!blob) throw new PhotoError("Couldn't open that photo. Try a JPEG or PNG.");
+  let frame = { x: 0.5, y: 0.5 };
+  try { frame = suggestFrame(canvas); } catch { /* keep it centred */ }
   const id = newPhotoId();
   await putPhoto({ id, blob });
-  return id;
+  return { id, x: frame.x, y: frame.y };
 }
 
 // id → Promise of { bitmap, url, width, height } (url is for showing the plain photo while dragging).
@@ -86,8 +102,9 @@ export function photoArt(recipe, width = PREVIEW_SIZE.width, height = PREVIEW_SI
   const { photo, time } = recipe;
   const job = loadPhoto(photo.id).then(async ({ bitmap }) => {
     await nextFrame(); // let the page show "Making poster…" before the work starts
-    const pixels = cropToImageData(bitmap, photo, width, height);
-    const poster = posterize(pixels, { colors: photo.colors, inks: photo.inks, palette: PALETTES[time], seed: 1 });
+    // The photo is read at the posterizer's working size, so every size of poster gets the same shapes.
+    const pixels = cropToImageData(bitmap, photo, Math.round((WORK_SIZE * width) / height), WORK_SIZE);
+    const poster = posterize(pixels, { colors: photo.colors, inks: photo.inks, palette: PALETTES[time], seed: 1, width, height });
     const result = { url: imageDataToUrl(poster), inks: poster.inks, rows: lightnessRows(poster) };
     if (key.endsWith(`|${PREVIEW_SIZE.width}|${PREVIEW_SIZE.height}`)) remember(key, result, finished);
     return result;

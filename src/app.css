@@ -313,7 +313,18 @@ body:not([data-ready]) .tabs, body:not([data-ready]) main > section { visibility
 
 .picker-colors svg { max-width: 60px; height: 20px; border-radius: 3px; }
 
-.field-range input { padding: 0; border: 0; background: none; accent-color: var(--navy); min-height: 32px; }
+/* Right under the poster, so the effect of zooming is in view. */
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, calc(52dvh * 2 / 3));
+  margin-top: -4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.zoom-control input { flex: 1; min-height: 32px; margin: 0; accent-color: var(--navy); }
 
 .hint { margin: 0; font-size: 0.85rem; opacity: 0.75; text-align: center; }
 

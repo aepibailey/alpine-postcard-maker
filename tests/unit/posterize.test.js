@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab, mergeSmall, downscale } from '../../src/photo/posterize.js';
+import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab, mergeSmall, downscale, photoInks } from '../../src/photo/posterize.js';
 import { PALETTES } from '../../src/palettes.js';
 import { createRng } from '../../src/rng.js';
 
@@ -91,25 +91,39 @@ test('downscale keeps the aspect and averages colour', () => {
 });
 
 test('a small preview and a big export are cut into the same shapes', () => {
-  const small = fakePhoto(600, 900);
-  const big = { width: 1200, height: 1800, data: new Uint8ClampedArray(1200 * 1800 * 4) };
-  for (let y = 0; y < 1800; y++) {
-    for (let x = 0; x < 1200; x++) {
-      const from = ((y >> 1) * 600 + (x >> 1)) * 4, to = (y * 1200 + x) * 4;
-      for (let c = 0; c < 4; c++) big.data[to + c] = small.data[from + c];
-    }
-  }
-  const a = posterize(small, { colors: 5, inks: 'photo', antialias: false });
-  const b = posterize(big, { colors: 5, inks: 'photo', antialias: false });
-  const inkOf = (out, p) => out.inks.findIndex((c) => c[0] === out.data[p * 4] && c[1] === out.data[p * 4 + 1] && c[2] === out.data[p * 4 + 2]);
-  const sameInk = a.inks.map((c) => b.inks.findIndex((d) => d.every((v, j) => Math.abs(v - c[j]) <= 8)));
-  assert.ok(sameInk.every((j) => j >= 0), 'both sizes pick the same inks');
+  const photo = fakePhoto(360, 540);
+  const a = posterize(photo, { colors: 5, inks: 'photo', antialias: false, width: 600, height: 900 });
+  const b = posterize(photo, { colors: 5, inks: 'photo', antialias: false, width: 1200, height: 1800 });
+  assert.deepEqual(a.inks, b.inks);
+  assert.equal(b.data.length, 1200 * 1800 * 4);
   let match = 0, n = 0;
-  for (let y = 0; y < 900; y += 7) {
-    for (let x = 0; x < 600; x += 7) {
+  for (let y = 1; y < 900; y += 7) {
+    for (let x = 1; x < 600; x += 7) {
       n++;
-      if (sameInk[inkOf(a, y * 600 + x)] === inkOf(b, (2 * y) * 1200 + 2 * x)) match++;
+      const i = (y * 600 + x) * 4, j = ((2 * y) * 1200 + 2 * x) * 4;
+      if (a.data[i] === b.data[j] && a.data[i + 1] === b.data[j + 1] && a.data[i + 2] === b.data[j + 2]) match++;
     }
   }
-  assert.ok(match / n > 0.95, `${Math.round((100 * match) / n)}% of the poster matches`);
+  assert.ok(match / n > 0.97, `${Math.round((100 * match) / n)}% of the poster matches`);
+});
+
+test('big plain areas leave inks for small, distinct colours', () => {
+  // 90% flat sky, 10% split between white houses and dark roofs.
+  const w = 200, h = 300;
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let p = 0; p < w * h; p++) {
+    const y = Math.floor(p / w), x = p % w;
+    const c = y < 270 ? [70, 150, 240] : (x % 40 < 20 ? [250, 250, 245] : [40, 35, 30]);
+    data.set([...c, 255], p * 4);
+  }
+  const out = posterize({ width: w, height: h, data }, { colors: 4, inks: 'photo', antialias: false });
+  const L = out.inks.map((c) => toLab(...c)[0]);
+  assert.ok(Math.max(...L) > 90, 'white houses keep a light ink');
+  assert.ok(Math.min(...L) < 30, 'dark roofs keep a dark ink');
+});
+
+test('vivid colours are calmed, dull ones enriched', () => {
+  const [vivid, dull] = photoInks([[60, 0, -70], [50, 8, 8]]).map((c) => toLab(...c));
+  assert.ok(Math.hypot(vivid[1], vivid[2]) <= 43);
+  assert.ok(Math.hypot(dull[1], dull[2]) > Math.hypot(8, 8));
 });

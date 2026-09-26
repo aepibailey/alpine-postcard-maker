@@ -12,26 +12,28 @@ const ROWS = 60;
 const toHex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 const L = (rgb) => toLab(...rgb)[0];
 
-// Average lightness of each of ROWS horizontal bands of a posterized image, top to bottom.
-// It's all the lettering needs to know about the picture, and much smaller to keep than the pixels.
+const LIGHT = 55;
+
+// For each of ROWS horizontal bands of a posterized image, top to bottom: the share of it that is
+// light. It's all the lettering needs to know about the picture, and much smaller than the pixels.
 export function lightnessRows({ width, height, data }) {
   const rows = new Float32Array(ROWS);
   for (let band = 0; band < ROWS; band++) {
-    let sum = 0;
+    let light = 0;
     let n = 0;
     for (let y = Math.floor((band * height) / ROWS); y < Math.floor(((band + 1) * height) / ROWS); y += 2) {
       for (let x = 0; x < width; x += 3) {
         const i = (y * width + x) * 4;
-        sum += L([data[i], data[i + 1], data[i + 2]]);
+        if (L([data[i], data[i + 1], data[i + 2]]) > LIGHT) light++;
         n++;
       }
     }
-    rows[band] = n ? sum / n : 50;
+    rows[band] = n ? light / n : 0.5;
   }
   return rows;
 }
 
-function bandLightness(rows, from, to) {
+function lightShare(rows, from, to) {
   const a = Math.floor(from * ROWS);
   const b = Math.max(a + 1, Math.ceil(to * ROWS));
   let sum = 0;
@@ -40,7 +42,8 @@ function bandLightness(rows, from, to) {
 }
 
 // Lettering inks for a photo poster: the lightest or darkest of its own inks, whichever
-// stands out against the part of the photo the words sit on.
+// stands out against the part of the photo the words sit on. Where that part is a mix of light
+// and dark, the words also get an outline (halo) in the other ink, so they read over anything.
 // Bands (the banner and bottom layouts) stay cream with dark words, like the drawn posters.
 // `art` is { inks, rows }; without it (photo still loading) the time of day's own inks are used.
 export function letteringInks(art, time, layout = 'top') {
@@ -49,10 +52,16 @@ export function letteringInks(art, time, layout = 'top') {
   const sorted = [...art.inks].sort((a, b) => L(a) - L(b));
   const dark = toHex(sorted[0]);
   const light = toHex(sorted.at(-1));
-  const on = (from, to) => (bandLightness(art.rows, from, to) > 55 ? dark : light);
+  const on = (from, to) => {
+    const share = lightShare(art.rows, from, to);
+    const busy = share > 0.2 && share < 0.8;
+    return share > 0.5 ? [dark, busy ? light : undefined] : [light, busy ? dark : undefined];
+  };
   if (layout === 'banner') return { ...p, ink: dark };
-  if (layout === 'bottom') return { ...p, fore: dark, title: on(0.06, 0.13) };
-  return { ...p, title: on(layout === 'arched' ? 0.06 : 0.1, layout === 'arched' ? 0.24 : 0.2), paper: on(0.91, 0.97) };
+  const [title, titleHalo] = layout === 'bottom' ? on(0.06, 0.13) : on(layout === 'arched' ? 0.06 : 0.1, layout === 'arched' ? 0.24 : 0.2);
+  if (layout === 'bottom') return { ...p, fore: dark, title, titleHalo };
+  const [paper, paperHalo] = on(0.91, 0.97);
+  return { ...p, title, titleHalo, paper, paperHalo };
 }
 
 // The part of the photo that fills the 2:3 poster. x, y (0–1) say which part is centred; zoom ≥ 1.
@@ -81,6 +90,46 @@ export function panCrop(photoWidth, photoHeight, crop, dx, dy) {
     x: Math.min(1 - halfW, Math.max(halfW, cx)),
     y: Math.min(1 - halfH, Math.max(halfH, cy)),
   };
+}
+
+// Where the sky meets the land in a posterized photo: for each column, the row where the sky
+// ends (NaN where there's no sky). The sky is the most common light-enough ink in the top part,
+// so a dark window frame or roof edge along the top isn't taken for sky.
+export function skyline({ data, width, height }, inkLightness) {
+  const counts = new Map();
+  for (let y = 0; y < Math.floor(height * 0.4); y++) {
+    for (let x = 0; x < width; x += 2) {
+      const l = data[y * width + x];
+      if (inkLightness[l] >= 35) counts.set(l, (counts.get(l) ?? 0) + 1);
+    }
+  }
+  const out = new Float32Array(width).fill(NaN);
+  if (!counts.size) return out;
+  const sky = [...counts].sort((a, b) => b[1] - a[1])[0][0];
+  for (let x = 0; x < width; x++) {
+    let y = 0;
+    while (y < height * 0.6 && data[y * width + x] !== sky) y++; // skip anything above the sky
+    if (y >= height * 0.6) continue;
+    for (; y < height - 3; y++) {
+      if (data[y * width + x] !== sky && data[(y + 1) * width + x] !== sky && data[(y + 2) * width + x] !== sky) break;
+    }
+    out[x] = y;
+  }
+  return out;
+}
+
+// A good first framing for a new photo (zoom 1). Tall photos (most phone photos) are moved up or
+// down so the tops of the mountains sit a little below the title, leaving out the ground or
+// window ledge in front; sideways it stays centred, which suits most views. Without a clear sky
+// it stays in the middle. labels: the posterized whole photo ({ data, width, height });
+// inkLightness: each ink's lightness.
+export function autoFrame(labels, inkLightness, photoWidth, photoHeight) {
+  const known = [...skyline(labels, inkLightness)].filter(Number.isFinite).sort((a, b) => a - b);
+  if (known.length < labels.width * 0.3) return { x: 0.5, y: 0.5 };
+  const tops = known[Math.floor(known.length * 0.1)] * (photoHeight / labels.height);
+  const r = cropRect(photoWidth, photoHeight);
+  const { x, y } = panCrop(photoWidth, photoHeight, { x: 0.5, y: (tops + 0.22 * r.height) / photoHeight, zoom: 1 }, 0, 0);
+  return { x, y };
 }
 
 // Browser only: the cropped photo (an <img> or ImageBitmap) as pixels, ready to posterize.

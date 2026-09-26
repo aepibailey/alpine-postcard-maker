@@ -34,13 +34,15 @@ const fromKey = ([L, a, b]) => [L / L_WEIGHT, a, b];
 const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 
 // k-means++ on a sample of Lab pixels. Seeded, so the same photo always gives the same inks.
-export function kmeans(samples, k, rng, iterations = 14) {
+// `weights` (optional) says how much each sample counts.
+export function kmeans(samples, k, rng, iterations = 14, weights = null) {
+  const weight = (i) => (weights ? weights[i] : 1);
   const centres = [samples[Math.floor(rng() * samples.length)].slice()];
   const d = new Float64Array(samples.length);
   while (centres.length < k) {
     let total = 0;
     for (let i = 0; i < samples.length; i++) {
-      d[i] = Math.min(...centres.map((c) => dist2(samples[i], c)));
+      d[i] = Math.min(...centres.map((c) => dist2(samples[i], c))) * weight(i);
       total += d[i];
     }
     let pick = rng() * total;
@@ -54,7 +56,8 @@ export function kmeans(samples, k, rng, iterations = 14) {
     const sums = centres.map(() => [0, 0, 0, 0]);
     for (let i = 0; i < samples.length; i++) {
       const s = sums[label[i]];
-      s[0] += samples[i][0]; s[1] += samples[i][1]; s[2] += samples[i][2]; s[3]++;
+      const wt = weight(i);
+      s[0] += samples[i][0] * wt; s[1] += samples[i][1] * wt; s[2] += samples[i][2] * wt; s[3] += wt;
     }
     sums.forEach((s, j) => { if (s[3]) centres[j] = [s[0] / s[3], s[1] / s[3], s[2] / s[3]]; });
   }
@@ -83,6 +86,26 @@ export function samplePixels(image, count = 20000) {
     }
   }
   return out;
+}
+
+// A big even area (a clear blue sky, a grey roof) shouldn't use up most of the inks and leave
+// none for small, telling colours (white houses, a far blue peak). Samples are grouped into
+// small colour bins, and each bin counts as its size to the power `balance` (1 = plain area).
+export function balancedSamples(samples, balance = 0.5) {
+  const bins = new Map();
+  for (const s of samples) {
+    const key = `${Math.round(s[0] / 4)},${Math.round(s[1] / 5)},${Math.round(s[2] / 5)}`;
+    let bin = bins.get(key);
+    if (!bin) bins.set(key, (bin = [0, 0, 0, 0]));
+    bin[0] += s[0]; bin[1] += s[1]; bin[2] += s[2]; bin[3]++;
+  }
+  const points = [];
+  const weights = [];
+  for (const bin of bins.values()) {
+    points.push([bin[0] / bin[3], bin[1] / bin[3], bin[2] / bin[3]]);
+    weights.push(bin[3] ** balance);
+  }
+  return { points, weights };
 }
 
 // Each pixel's nearest centre. A small cache keeps this fast on photos with large even areas.
@@ -208,6 +231,8 @@ export function toInks(centres, palette) {
   return inks;
 }
 
+const MAX_CHROMA = 42;
+
 // "Photo colours": the photo's own colours as fresh ink: richer, with a wider dark-to-light
 // spread, the way a printer would mix them.
 export function photoInks(centres) {
@@ -215,7 +240,14 @@ export function photoInks(centres) {
   const lo = Math.min(...Ls), hi = Math.max(...Ls);
   const newLo = Math.max(10, lo - 10), newHi = Math.min(97, hi + 6);
   const stretch = (L) => (hi - lo < 1 ? L : newLo + ((L - lo) * (newHi - newLo)) / (hi - lo));
-  return centres.map(([L, a, b]) => labToRgb([stretch(L), a * 1.35, b * 1.35]));
+  // Dull colours get richer; colours that are already vivid (a bright blue sky) are calmed a
+  // little, like printing ink rather than a phone screen.
+  return centres.map(([L, a, b]) => {
+    const chroma = Math.hypot(a, b);
+    let boost = 1 + 0.35 * Math.max(0, 1 - chroma / 45);
+    if (chroma * boost > MAX_CHROMA) boost = MAX_CHROMA / chroma;
+    return labToRgb([stretch(L), a * boost, b * boost]);
+  });
 }
 
 // Area-average downscale so the long edge is at most `size`.
@@ -245,7 +277,9 @@ export function downscale(image, size) {
 
 // Islands of one ink smaller than `minArea` pixels join the ink around them, so the picture
 // keeps only shapes big enough to cut as a stencil.
-export function mergeSmall(labels, width, height, minArea) {
+// `stands(ink, around)` (optional) says an island's ink stands out strongly from the ink around it;
+// such islands (a white house on a green meadow) are kept down to a quarter of that size.
+export function mergeSmall(labels, width, height, minArea, stands = null) {
   const out = Uint8Array.from(labels);
   const seen = new Int32Array(out.length).fill(-1);
   const stack = new Int32Array(out.length);
@@ -272,6 +306,7 @@ export function mergeSmall(labels, width, height, minArea) {
     if (members.length < minArea && around.size) {
       let best = l, bestN = 0;
       for (const [k, n] of around) if (n > bestN) { bestN = n; best = k; }
+      if (stands && members.length >= minArea / 4 && stands(l, best)) continue;
       for (const p of members) out[p] = best;
     }
   }
@@ -338,22 +373,25 @@ function boxBlur1(src, w, h) {
   return out;
 }
 
-// The shapes are always worked out at this size (long edge), so the small preview and a big
-// export are cut the same way; only the final edges are drawn at full size.
+// The shapes are always worked out at this size (long edge); only the final edges are drawn at
+// full size. Give posterize() the photo at about this size and it can draw the poster at any size
+// with exactly the same shapes and inks, so the preview and a big export always match.
 export const WORK_SIZE = 540;
 
-// Photo → flat-ink poster image. Returns { width, height, data, inks }.
-// `detail` (0.5–2) makes the shapes finer or bolder. `antialias: false` keeps edges pure ink.
-export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, detail = 1, antialias = true } = {}) {
+// Photo → flat-ink poster image. Returns { width, height, data, inks, labels }.
+// width/height: the size to draw (default: the image's). `antialias: false` keeps edges pure ink.
+export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, antialias = true, width = image.width, height = image.height } = {}) {
   const k = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(colors)));
-  const work = blur(sharpen(downscale(image, Math.round(WORK_SIZE * detail))), 1);
+  const work = blur(sharpen(downscale(image, WORK_SIZE)), 1);
   const { width: w, height: h } = work;
-  const centres = kmeans(samplePixels(work), k, createRng(seed));
+  const { points, weights } = balancedSamples(samplePixels(work));
+  const centres = kmeans(points, k, createRng(seed), 14, weights);
   const lab = centres.map(fromKey);
+  const stands = (a, b) => dist2(lab[a], lab[b]) > 40 ** 2;
   let labels = smooth(assign(work, centres), w, h, 1, 2);
-  labels = mergeSmall(labels, w, h, Math.max(4, Math.round((w * h) / 1200)));
+  labels = mergeSmall(labels, w, h, Math.max(4, Math.round((w * h) / 1200)), stands);
   labels = smooth(labels, w, h, 2, 1);
   const colours = inks === 'poster' && palette ? toInks(lab, palette) : photoInks(lab);
-  const data = renderLabels(labels, w, h, image.width, image.height, colours, antialias);
-  return { width: image.width, height: image.height, data, inks: colours };
+  const data = renderLabels(labels, w, h, width, height, colours, antialias);
+  return { width, height, data, inks: colours, labels: { data: labels, width: w, height: h } };
 }

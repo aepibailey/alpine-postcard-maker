@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFile, copyFile, mkdir } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 
-const SHOTS = 'docs/screenshots/v2b';
+const SHOTS = 'docs/screenshots/v2-1';
 const PHOTO = 'tests/fixtures/photos/peak.jpg';
 const title = (page) => page.getByRole('textbox', { name: 'Destination' });
 const preview = (page) => page.locator('#preview');
@@ -119,7 +119,13 @@ test('drag and zoom frame the photo', async ({ page }) => {
   expect(Number(await preview(page).getAttribute('data-x'))).toBeLessThan(0.45);
   expect(await artUrl(page)).not.toBe(before);
 
-  await page.getByRole('slider', { name: 'Zoom' }).fill('2');
+  // The zoom slider sits right under the poster, so the effect is in view.
+  const slider = page.getByRole('slider', { name: 'Zoom' });
+  const under = await slider.boundingBox();
+  const poster = await preview(page).boundingBox();
+  expect(under.y).toBeGreaterThan(poster.y + poster.height - 1);
+  expect(under.y).toBeLessThan(poster.y + poster.height + 40);
+  await slider.fill('2');
   await expect(preview(page)).toHaveAttribute('data-zoom', '2.00');
   await posterReady(page);
 
@@ -128,6 +134,14 @@ test('drag and zoom frame the photo', async ({ page }) => {
   await page.reload();
   await posterReady(page);
   expect(await preview(page).evaluate((el) => [el.dataset.photo, el.dataset.x, el.dataset.zoom])).toEqual(framing);
+});
+
+test('a tall phone photo starts framed on its mountains', async ({ page }) => {
+  await page.goto('./');
+  await usePhoto(page, 'tests/fixtures/photos/phone-tall.jpg');
+  expect(Number(await preview(page).getAttribute('data-y'))).toBeLessThan(0.45);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `${SHOTS}/tall-photo-framed.png` });
 });
 
 test('Surprise me keeps the photo', async ({ page }) => {

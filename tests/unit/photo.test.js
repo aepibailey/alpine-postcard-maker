@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRecipe, createRecipe, duplicateRecipe, surpriseRecipe, normalizePhoto } from '../../src/recipe.js';
 import { renderPoster, styleOf } from '../../src/poster.js';
-import { cropRect, panCrop, letteringInks } from '../../src/photo/photo-poster.js';
+import { cropRect, panCrop, letteringInks, skyline, autoFrame } from '../../src/photo/photo-poster.js';
+import { renderPhotoPoster } from '../../src/photo/photo-poster.js';
 import { makeBackup, readBackup, parseBackup, planRestore } from '../../src/backup.js';
 import { createRng } from '../../src/rng.js';
 
@@ -49,14 +50,14 @@ test('photo posters render without their art yet, flat and without scenery', () 
   const svg = renderPoster(r, { id: 'x' });
   assert.match(svg, /data-style="photo"/);
   assert.match(svg, /Destination/i);
-  const art = { url: 'data:image/png;base64,AAAA', inks: [[10, 10, 10], [240, 240, 240]], rows: new Float32Array(60).fill(90) };
+  const art = { url: 'data:image/png;base64,AAAA', inks: [[10, 10, 10], [240, 240, 240]], rows: new Float32Array(60).fill(1) };
   assert.match(renderPoster(r, { id: 'x', art }), /<image href="data:image\/png;base64,AAAA"/);
 });
 
 test('lettering on a photo stands out from what is behind it', () => {
   const dark = [[20, 20, 30], [200, 190, 180], [250, 248, 240]];
-  const onLight = letteringInks({ inks: dark, rows: new Float32Array(60).fill(90) }, 'midday', 'top');
-  const onDark = letteringInks({ inks: dark, rows: new Float32Array(60).fill(10) }, 'midday', 'top');
+  const onLight = letteringInks({ inks: dark, rows: new Float32Array(60).fill(1) }, 'midday', 'top');
+  const onDark = letteringInks({ inks: dark, rows: new Float32Array(60).fill(0) }, 'midday', 'top');
   assert.equal(onLight.title, '#14141e');
   assert.equal(onDark.title, '#faf8f0');
 });
@@ -107,4 +108,49 @@ test('restore brings over only the photos that are missing', () => {
   const existing = [{ id: c.id, updatedAt: c.updatedAt + 10 }];
   const plan = planRestore(existing, [{ recipe: a }, { recipe: b }, { recipe: c }], photos, ['ph-2']);
   assert.deepEqual(plan.photos.map((p) => p.id), ['ph-1']); // ph-2 is on the phone; c isn't restored
+});
+
+// A made-up posterized phone photo, 100 × 216 (about 9:19.5): a dark window ledge along the top
+// (ink 0), sky (ink 1), mountains whose tops start 30% down (ink 2), then ground (ink 3).
+function tallScene({ ledge = true } = {}) {
+  const width = 100, height = 216;
+  const data = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const ridge = height * (0.3 + 0.1 * Math.abs(x - 50) / 50);
+      data[y * width + x] = ledge && y < height * 0.12 ? 0 : y < ridge ? 1 : y < height * 0.6 ? 2 : 3;
+    }
+  }
+  return { data, width, height };
+}
+const INK_L = [12, 70, 35, 45];
+
+test('the skyline is found below a dark window ledge', () => {
+  const line = skyline(tallScene(), INK_L);
+  assert.ok(Math.abs(line[50] - 216 * 0.3) <= 2, `${line[50]}`);
+  assert.ok(Math.abs(line[0] - 216 * 0.4) <= 2, `${line[0]}`);
+});
+
+test('a tall photo starts framed on its mountain tops, not the middle', () => {
+  const frame = autoFrame(tallScene(), INK_L, 1000, 2160);
+  assert.equal(frame.x, 0.5);
+  const r = cropRect(1000, 2160, frame);
+  const tops = 2160 * 0.3;
+  assert.ok(r.top < tops && tops < r.top + r.height * 0.4, `crop ${r.top}–${r.top + r.height}, tops at ${tops}`);
+  assert.ok(frame.y < 0.5);
+});
+
+test('with no clear sky the photo starts in the middle', () => {
+  const flat = { data: new Uint8Array(100 * 150).fill(2), width: 100, height: 150 };
+  assert.deepEqual(autoFrame(flat, INK_L, 1000, 1500), { x: 0.5, y: 0.5 });
+});
+
+test('lettering over a busy part of the photo gets an outline', () => {
+  const inks = [[20, 20, 30], [250, 248, 240]];
+  const mixed = { url: 'data:image/png;base64,AAAA', inks, rows: new Float32Array(60).fill(0.5) };
+  const plain = { ...mixed, rows: new Float32Array(60).fill(1) };
+  const r = createRecipe({ photo: { id: 'ph-1' } });
+  assert.match(renderPhotoPoster(r, mixed), /data-role="halo"/);
+  assert.doesNotMatch(renderPhotoPoster(r, plain), /data-role="halo"/);
+  assert.doesNotMatch(renderPoster(createRecipe()), /data-role="halo"/, 'drawn posters are unchanged');
 });
