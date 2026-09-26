@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { VERSION } from '../../src/version.js';
 
 const SHOTS = 'docs/screenshots/m8';
 const title = (page) => page.getByRole('textbox', { name: 'Destination' });
@@ -102,9 +103,9 @@ test('About shows the version, font credits and storage', async ({ page }) => {
   await expect(about).toBeHidden();
 });
 
-test('version 1.0.0 is shown', async ({ page }) => {
+test('the current version is shown', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('#app-version')).toHaveText('1.0.0');
+  await expect(page.locator('#app-version')).toHaveText(VERSION);
 });
 
 test('no serious accessibility problems in the editor or gallery', async ({ page }) => {
