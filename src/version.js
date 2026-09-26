@@ -1,2 +1,2 @@
 // Bump together with CACHE in sw.js whenever cached files change.
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';

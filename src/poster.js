@@ -4,6 +4,7 @@ import { sky, sun, moon, stars } from './layers/sky.js';
 import { mountain, farRange } from './layers/mountains.js';
 import { composeScenery } from './scene.js';
 import { escapeText } from './svg.js';
+import { printStyle, PRINT_STYLES } from './styles/print.js';
 import { lettering } from './layers/lettering.js';
 import { border } from './layers/border.js';
 
@@ -28,13 +29,19 @@ export function renderPoster(recipe, { id = recipe.id } = {}) {
     ? stars(p, rng, { count: 80, bottom: 1000 }) + moon(p, { id, ...body })
     : sun(p, body);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}" role="img" aria-label="${escapeText(recipe.lettering?.title || 'Untitled')} poster">` +
-    sky(p, { horizon: HORIZON }) +
+  const style = PRINT_STYLES.includes(recipe.style) ? recipe.style : 'flat';
+  const print = printStyle(style, p, { id, seed: recipe.seed });
+  const art = sky(p, { horizon: HORIZON }) +
     celestial +
     farRange(p, createRng(recipe.seed), { minY: 820, maxY: 940 }) +
     mountain(p, { id, kind: recipe.peak, seed: recipe.peakSeed }) +
     composeScenery(recipe, p, id) +
-    lettering(recipe, p, id) +
-    border(p) +
+    lettering(recipe, p, id);
+  const wrap = (filter, content) => (filter ? `<g filter="url(#${filter})">${content}</g>` : content);
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}" role="img" aria-label="${escapeText(recipe.lettering?.title || 'Untitled')} poster" data-style="${style}">` +
+    (print.defs ? `<defs>${print.defs}</defs>` : '') +
+    wrap(print.posterFilter, wrap(print.artFilter, art) + border(p)) +
+    print.overlay +
     `</svg>`;
 }

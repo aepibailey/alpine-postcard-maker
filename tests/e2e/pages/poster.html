@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Dev-only page: renders one poster full-size for screenshots. Not shipped.
      ?i=<sample index>  &peak=<spire|massif|pyramid|random>  &seed=<ridgeline seed>
-     &time=<dawn|midday|alpenglow|night>  &layers=village,forest,...  &title= &tagline= &layout=<top|bottom|arched|banner> &font=<limelight|poiret|bebas|josefin> -->
+     &time=<dawn|midday|alpenglow|night>  &layers=village,forest,...  &title= &tagline= &layout=<top|bottom|arched|banner> &font=<limelight|poiret|bebas|josefin>  &style=<flat|screenprint|aged> -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -20,6 +20,7 @@
     if (params.has('seed')) recipe.peakSeed = Number(params.get('seed'));
     recipe.lettering = { ...recipe.lettering };
     for (const key of ['title', 'tagline', 'layout', 'font']) if (params.has(key)) recipe.lettering[key] = params.get(key);
+    if (params.has('style')) recipe.style = params.get('style');
     if (params.has('layers')) recipe.layers = Object.fromEntries(params.get('layers').split(',').filter(Boolean).map((l) => [l, true]));
     await document.fonts.load("100px 'Limelight'");
     await document.fonts.load("700 100px 'Josefin Sans'");

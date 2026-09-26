@@ -156,6 +156,12 @@ main {
 
 .picker-layout svg { max-width: 28px; height: 40px; }
 
+.picker-style { grid-template-columns: repeat(3, 1fr); }
+
+.picker-style button { min-height: 64px; }
+
+.picker-style svg { max-width: 56px; height: 34px; border-radius: 4px; }
+
 .roll-button {
   font: inherit;
   font-weight: 700;
