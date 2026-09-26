@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- Dev-only page: turns a sample photo into a photo poster for screenshots. Not shipped.
+     ?photo=<file in tests/fixtures/photos>  &colors=4..6  &inks=<poster|photo>  &time=<dawn|midday|alpenglow|night>
+     &title= &tagline= &layout=<top|bottom|arched|banner> &font=<limelight|poiret|bebas|josefin> &x= &y= &zoom= &seed= -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../../../src/fonts.css">
+  <style>html, body { margin: 0; } svg { display: block; width: 1200px; height: 1800px; }</style>
+</head>
+<body>
+  <script type="module">
+    import { posterize } from '../../../src/photo/posterize.js';
+    import { cropToImageData, imageDataToUrl, renderPhotoPoster, lightnessRows } from '../../../src/photo/photo-poster.js';
+    import { PALETTES } from '../../../src/palettes.js';
+    const q = new URLSearchParams(location.search);
+    const num = (k, d) => (q.has(k) ? Number(q.get(k)) : d);
+    const img = new Image();
+    img.src = `../../fixtures/photos/${q.get('photo')}`;
+    await img.decode();
+    const time = q.get('time') ?? 'alpenglow';
+    const pixels = cropToImageData(img, { x: num('x', 0.5), y: num('y', 0.5), zoom: num('zoom', 1) }, 1200, 1800);
+    const started = performance.now();
+    const poster = posterize(pixels, { colors: num('colors', 5), inks: q.get('inks') ?? 'poster', palette: PALETTES[time], seed: num('seed', 1) });
+    document.body.dataset.ms = String(Math.round(performance.now() - started));
+    const recipe = {
+      id: 'photo', time,
+      lettering: { title: q.get('title') ?? 'Destination', tagline: q.get('tagline') ?? '', layout: q.get('layout') ?? 'top', font: q.get('font') ?? 'limelight' },
+    };
+    for (const f of ["100px 'Limelight'", "700 100px 'Josefin Sans'", "100px 'Poiret One'", "100px 'Bebas Neue'"]) await document.fonts.load(f);
+    document.body.innerHTML = renderPhotoPoster(recipe, { url: imageDataToUrl(poster), inks: poster.inks, rows: lightnessRows(poster) });
+    document.body.dataset.ready = 'true';
+  </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { renderPoster, POSTER_WIDTH, POSTER_HEIGHT, styleOf } from './poster.js'
 import { printStyle } from './styles/print.js';
 import { PALETTES } from './palettes.js';
 import { letteringOf, TYPEFACES } from './layers/lettering.js';
+import { photoArt } from './photo/photo-art.js';
 
 // Export sizes. The poster keeps its 2:3 shape; other shapes get a cream mat around it, like a mounted print.
 export const EXPORT_SIZES = {
@@ -108,7 +109,9 @@ export async function exportPoster(recipe, { width, height, embedFonts = true, f
   const y = Math.round((height - h) / 2);
   const fill = fit === 'fill' && (w < width || h < height);
 
-  let svg = renderPoster(recipe, { id: 'export', frame: !fill, overlay: !fill })
+  // A photo poster's art is made at the size it's saved at, so it stays sharp.
+  const art = recipe.photo ? await photoArt(recipe, w, h) : undefined;
+  let svg = renderPoster(recipe, { id: 'export', frame: !fill, overlay: !fill, art })
     .replace('<svg ', `<svg width="${w}" height="${h}" `);
   if (embedFonts) {
     const css = await embeddedFontCss(fontsUsed(recipe));

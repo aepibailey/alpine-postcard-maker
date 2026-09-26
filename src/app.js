@@ -12,6 +12,8 @@ async function startApp() {
   let gallery;
   const editor = startEditor({ onChange: (recipe) => store.edited(recipe, () => gallery?.updateCount()) });
   editor.load(await store.startingPoster());
+  // Photos left behind (e.g. replaced by another photo) are cleared out quietly.
+  store.flush().then(() => store.prunePhotos([editor.current().photo?.id])).catch(() => {});
   startExport(() => editor.current());
   gallery = await startGallery(editor);
   startWelcome();

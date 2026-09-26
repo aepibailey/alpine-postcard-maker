@@ -25,7 +25,8 @@ appears. Tap it to update.
 - **M5** — print styles: flat, screen print, aged paper ✅
 - **M6** — export: phone wallpaper, match my screen, 10×15 print, square post → share sheet or Downloads ✅
 - **M7** — gallery: every poster kept on the phone; open, copy, delete; back up / restore to a file ✅
-- **M8** — v1.0 polish: welcome hint, ✨ Surprise me, mini poster while scrolling, About panel with font credits, accessibility checks
+- **M8** — v1.0 polish: welcome hint, ✨ Surprise me, mini poster while scrolling, About panel with font credits, accessibility checks ✅
+- **V2** — 📷 photo mode: turn your own mountain photos into posters with 4–6 flat inks (the photo's own colours or the time-of-day inks); drag and zoom to frame; photos stay on the phone and are included in backups
 
 See [`docs/PLAN.md`](docs/PLAN.md) for later versions.
 

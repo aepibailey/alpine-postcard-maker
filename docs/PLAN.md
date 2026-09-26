@@ -251,3 +251,129 @@ Use an external image model when the project needs raster art that code cannot p
 - **Opus** is best for M0–M3 (architecture plus the procedural SVG art, where visual judgment matters) and V2 Photo mode.
 - **Sonnet** is fine for M4–M8 and V3/V4, which are more routine UI and storage work.
 - Research mode isn't needed. The web platform features used are standard and well documented.
+
+---
+
+# V2 Photo mode — detailed plan (built; waiting for the owner's phone test): turn your own mountain photos into posters
+
+### Context
+v1.0.0 is live. The owner asked to "include the option to turn your own mountain photos into post cards", which is the V2 Photo mode already on the roadmap.
+
+**Owner decisions (this turn):**
+- **Colours: offer both.** A switch between two modes:
+  - **Poster inks** recolours the photo into the active time-of-day palette.
+  - **Photo colours** keeps the photo's own colours, reduced to 4–6 flat inks.
+- **Overlays:** lettering and border only. Photo posters use no print styles and no scenery or figures, so the style and scenery pickers are hidden in photo mode.
+- **Samples:** public-domain (CC0 / PD) mountain photos for the spike, the tests and the screenshots. The owner's photos never go into the repo.
+- **Framing:** drag with one finger, plus a zoom slider.
+
+The model best suited is Opus, because the image processing needs visual judgement. Research mode isn't needed. No AI image generation is involved: everything is done in code on the phone, so the CLAUDE.md image-gen process doesn't apply.
+
+The tag for 1.0.0 is still waiting on the owner ("Not yet").
+
+### Progress
+- Part 1 (v1.0.1): first engine, spike page `tests/e2e/pages/photo.html`, `scripts/photo-shots.mjs`, a code-made `standin.jpg`.
+- Part 2 (v1.0.2), art spike finished, **waiting for the owner's approval in the "art spike" PR**:
+  - Wikimedia became reachable. The API rate-limits the shared cloud IP (HTTP 429), so go slowly. `thumb.wikimedia.org` is blocked, but the same thumbnail path on `upload.wikimedia.org` works.
+  - 3 CC0 photos are in `tests/fixtures/photos/` (`peak.jpg`, `lake.jpg`, `dusk.jpg`), with sources in `CREDITS.md`.
+  - The engine was reworked:
+    - The shapes are always worked out at a fixed 540px (`WORK_SIZE`), so the preview and export match; it's also about 5× faster (≈0.6 s for 1200×1800 in headless Chromium).
+    - An unsharp mask comes first, and k-means runs in Lab with lightness weighted 1.5×, so snowy peaks don't melt into a pale sky.
+    - `mergeSmall` removes islands under 1/1200 of the picture.
+    - `renderLabels` scales the label map up with smooth, anti-aliased contours, like cut stencils.
+    - "Photo colours" gets a wider light-to-dark spread and 1.35× chroma.
+  - Screenshots are in `docs/screenshots/v2a/`: `<photo>-4/5/6.jpg`, `<photo>-alpenglow/night.jpg`, plus the grids `<photo>-colours.jpg` and `<photo>-inks.jpg`.
+  - Crops used in the spike: peak `x=0.36`, lake `x=0.55`, dusk `x=0.42`.
+- The owner approved the spike ("Looks great so far"). Their decisions: new photos start in **Photo colours** with **5** colours, and night Poster inks keep a pale sky.
+- **V2b (v2.0.0) is built**, on the same branch and in PR #11:
+  - `src/photo/photo-art.js`: imports photos, loads them, and caches the posterized art.
+  - `src/photo-ui.js`: the photo controls and dragging.
+  - Photo branches in `renderPoster` and `exportPoster`.
+  - IndexedDB v2 with a `photos` store; unused photos are pruned.
+  - Backup v2 with photos.
+  - 12 new unit tests (including `no-network.test.js`) and 10 new e2e tests in `tests/e2e/photo.spec.js`.
+  - Screenshots are in `docs/screenshots/v2b/`.
+- **Next:** the owner tests on the phone and merges. Then V3 (trip series).
+
+
+### Phase V2a: art spike. The owner approves the look before any controls are built.
+Branch: `claude/alpine-postcard-planning-rqa8hy` already holds part 1 (on top of `main`); continue on it.
+
+- **`src/photo/posterize.js`**: pure functions on `ImageData`-like `{width, height, data}`, testable in Node.
+  - `kmeans(pixels, k, rng)`: seeded (`src/rng.js`), run on about 20k sampled pixels in Lab or luminance-weighted RGB, returning the colour centres.
+  - `assign(image, centres)`: gives each pixel its nearest centre.
+  - `smooth(labels, w, h, radius)`: a majority (mode) filter that removes speckle so the shapes read as flat screen-print areas.
+  - `toInks(centres, palette)`: for "Poster inks". Sort the centres by luminance and map them onto the palette's inks, also sorted by luminance: sky light → dark, snow, peak, shadow and ink.
+  - `posterize(image, { colors, inks, palette, seed, smoothing })`: returns new RGBA.
+- **`scripts/fetch-samples`** is not needed. Instead, 3 CC0/PD mountain photos are added in `tests/fixtures/photos/`, downscaled to 1200px on the long edge, with `tests/fixtures/photos/CREDITS.md` giving the source URL and license for each. If downloads are blocked, fall back to procedurally generated "photos".
+- **Spike page** `tests/e2e/pages/photo.html`: loads a fixture and renders the photo poster (posterized raster `<image>` + lettering + border, via a new `photoPoster` branch in `renderPoster`) with query params `photo`, `colors`, `inks`, `time`, `title`.
+- **Screenshots** in `docs/screenshots/v2a/`:
+  - each photo at 4, 5 and 6 colours;
+  - "Poster inks" at alpenglow and night vs "Photo colours".
+  - They are sent in chat and embedded in the PR.
+- Iterate on smoothing, colour count and ink mapping until the results look like finished 1930s posters.
+- The PR is labelled "art spike". **Nothing further is built until the owner approves.**
+
+### Phase V2b: photo mode in the app (after approval)
+- **Recipe** (`src/recipe.js`): an optional `photo: { id, x, y, zoom, colors (4–6), inks: 'poster'|'photo', smoothing }`.
+  - `normalizeRecipe` validates and clamps it; recipes without `photo` are unchanged.
+  - `surpriseRecipe` on a photo poster changes only the time, typeface, placement and colours. It never removes the photo.
+- **Storage** (`src/gallery-db.js`):
+  - DB version 2 adds a `photos` store `{ id, blob }`.
+  - On pick, the photo is downscaled to ≤1600px on the long edge and saved as a JPEG of about 0.85 quality, then stored.
+  - Deleting a poster deletes its photo unless another poster (a copy) still uses it.
+- **Backup** (`src/backup.js`):
+  - `version: 2` adds `photos: [{ id, dataUrl }]`.
+  - Restoring a version 1 backup still works.
+  - `planRestore` also brings over the missing photos.
+  - A size note in the UI says photo backups are bigger.
+- **Rendering**:
+  - `renderPoster` draws a photo recipe's art layer as an `<image href=posterized PNG data URL>` cropped by x, y and zoom, with lettering and border on top.
+  - The preview posterizes at about 600×900 in the editor, cached per settings, so typing doesn't redo the photo.
+  - Export posterizes at the target size so it stays sharp, then continues through the existing font-embedding path in `src/export.js`.
+  - Fill mode stretches the edges, as today.
+- **UI** (`index.html`, `src/editor.js`, a new `src/photo-ui.js`):
+  - A "📷 Your photo" button, using `<input type=file accept="image/*">` (Android offers Camera or Photos).
+  - While a photo is set:
+    - a colours stepper (4–6);
+    - a Poster inks / Photo colours switch (the time-of-day picker applies to Poster inks);
+    - a zoom slider;
+    - drag on the preview to position the photo (swipe-to-change-mountain is off in photo mode);
+    - a "Back to drawn mountain" button.
+  - Mountain, scenery and print-style pickers are hidden.
+  - Gallery thumbnails work unchanged.
+- **Privacy:** the photo only ever lives in IndexedDB on the phone and inside the backup file the owner saves. There are no network calls; the unit test that looks for network use gets `photo` files added.
+- Bump the version to 2.0.0 (VERSION, CACHE, package.json) and complete PRECACHE with the new `src/photo/*`.
+
+### Tests
+- **Unit:**
+  - k-means is deterministic with a seed and returns k centres;
+  - assign/smooth reduce the number of colours to ≤ k;
+  - `toInks` keeps the luminance order;
+  - `normalizeRecipe` handles a photo field and clamps bad values;
+  - backup v1 and v2 both parse;
+  - `planRestore` includes photos.
+- **E2E (412×915):**
+  - pick a fixture photo via `setInputFiles`, and the preview shows the photo poster;
+  - the colour count changes the number of distinct colours in the image;
+  - the inks switch works;
+  - drag and zoom move the crop;
+  - after a reload the photo poster is still there (IndexedDB);
+  - export: the wallpaper PNG has the right size, and the font-export test stays green;
+  - a backup → delete → restore round-trip brings back the photo;
+  - offline: pick and render with the network blocked;
+  - axe finds no serious issues.
+- **Screenshots** in `docs/screenshots/v2b/`.
+
+### Verification
+- `npm test` and `npm run e2e` pass locally, then CI is green on the PR.
+- Screenshots are reviewed by eye and sent in chat.
+- **Owner's phone checklist:**
+  - pick one of your own mountain photos;
+  - try 4, 5 and 6 colours and both colour modes;
+  - drag and zoom it;
+  - add a title;
+  - save a wallpaper;
+  - reopen it from the Gallery;
+  - try airplane mode;
+  - make a backup.
