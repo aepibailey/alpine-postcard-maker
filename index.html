@@ -22,6 +22,13 @@
     <section class="editor" aria-label="Poster editor">
       <figure class="poster-frame" id="preview" aria-live="polite"></figure>
       <p class="peak-label" id="peak-label"></p>
+      <h2 class="picker-heading" id="size-heading">Save your poster</h2>
+      <div class="picker picker-size" id="size-picker" role="radiogroup" aria-labelledby="size-heading"></div>
+      <div class="export-actions">
+        <button type="button" class="action-button" id="share-button">Share…</button>
+        <button type="button" class="action-button secondary" id="save-button">Save to phone</button>
+      </div>
+      <p class="export-status" id="export-status" aria-live="polite"></p>
       <h2 class="picker-heading" id="peak-heading">Mountain</h2>
       <div class="picker" id="peak-picker" role="radiogroup" aria-labelledby="peak-heading"></div>
       <button type="button" class="roll-button" id="roll-button" hidden>🎲 New ridgeline</button>

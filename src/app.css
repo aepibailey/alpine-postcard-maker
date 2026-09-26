@@ -162,6 +162,28 @@ main {
 
 .picker-style svg { max-width: 56px; height: 34px; border-radius: 4px; }
 
+.picker-size button { min-height: 58px; gap: 2px; }
+
+.picker-size small { font-size: 0.68rem; font-weight: 400; opacity: 0.8; }
+
+.export-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+
+.action-button {
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  border: 2px solid var(--navy);
+  border-radius: 10px;
+  background: var(--navy);
+  color: var(--cream);
+}
+
+.action-button.secondary { background: #fffaf0; color: var(--navy); }
+
+.action-button:disabled { opacity: 0.5; }
+
+.export-status { margin: 0; min-height: 1.2em; font-size: 0.85rem; text-align: center; }
+
 .roll-button {
   font: inherit;
   font-weight: 700;
