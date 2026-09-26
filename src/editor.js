@@ -4,12 +4,17 @@ import { PEAK_KINDS, peakShape } from './layers/mountains.js';
 import { PALETTES } from './palettes.js';
 import { polygon } from './svg.js';
 import { SCENERY } from './scene.js';
+import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
 export const TIMES = ['dawn', 'midday', 'alpenglow', 'night'];
 const TIME_LABELS = { dawn: 'Dawn', midday: 'Midday', alpenglow: 'Alpenglow', night: 'Starry night' };
 const SCENERY_LABELS = { village: '🏘️ Village', hut: '🛖 Hut', gondola: '🚡 Gondola', forest: '🌲 Forest', lake: '🏞️ Lake', skier: '⛷️ Skier' };
+const LAYOUT_LABELS = { top: 'Top', bottom: 'Bottom', arched: 'Arched', banner: 'Banner' };
+const FONT_LABELS = Object.fromEntries(Object.entries(TYPEFACES).map(([key, face]) => [key, face.label]));
+const MAX_TITLE = 24;
+const MAX_TAGLINE = 40;
 const STORE_KEY = 'apm.editor';
 
 // The poster being edited. Scene and lettering stay fixed until later milestones add controls.
@@ -17,6 +22,7 @@ const { sun: _fixedSun, scene: _fixedScene, ...base } = SAMPLES[0];
 const state = {
   ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow',
   layers: { village: true, hut: false, gondola: false, forest: true, lake: false, skier: false },
+  lettering: { title: 'Hochwald', tagline: 'Evening on the high peaks', layout: 'top', font: 'limelight' },
 };
 
 function newSeed() {
@@ -32,12 +38,18 @@ function load() {
     if (Number.isInteger(saved.peakSeed)) state.peakSeed = saved.peakSeed;
     if (TIMES.includes(saved.time)) state.time = saved.time;
     if (saved.layers) for (const name of SCENERY) if (typeof saved.layers[name] === 'boolean') state.layers[name] = saved.layers[name];
+    const l = saved.lettering ?? {};
+    if (typeof l.title === 'string') state.lettering.title = l.title.slice(0, MAX_TITLE);
+    if (typeof l.tagline === 'string') state.lettering.tagline = l.tagline.slice(0, MAX_TAGLINE);
+    if (LAYOUTS.includes(l.layout)) state.lettering.layout = l.layout;
+    if (TYPEFACES[l.font]) state.lettering.font = l.font;
   } catch { /* ignore */ }
 }
 
 function save() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ peak: state.peak, peakSeed: state.peakSeed, time: state.time, layers: state.layers }));
+    const { peak, peakSeed, time, layers, lettering } = state;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ peak, peakSeed, time, layers, lettering }));
   } catch { /* ignore */ }
 }
 
@@ -64,6 +76,24 @@ function timeIcon(time) {
     polygon([[25, 18.4], [30, 12], [35, 18.4], [32, 17], [30, 20], [28, 17]], p.snow) + `</svg>`;
 }
 
+// A tiny poster outline showing where the title goes.
+function layoutIcon(layout) {
+  const frame = '<rect x="1" y="1" width="26" height="38" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const marks = {
+    top: '<rect x="5" y="5" width="18" height="5" fill="currentColor"/>',
+    bottom: '<rect x="1" y="28" width="26" height="11" fill="currentColor" opacity="0.35"/><rect x="5" y="31" width="18" height="5" fill="currentColor"/>',
+    arched: '<path d="M4,13 Q14,2 24,13" fill="none" stroke="currentColor" stroke-width="4"/>',
+    banner: '<rect x="1" y="27" width="26" height="12" fill="currentColor" opacity="0.35"/><rect x="5" y="30" width="18" height="4" fill="currentColor"/>',
+  };
+  return `<svg viewBox="0 0 28 40" aria-hidden="true">${frame}${marks[layout]}</svg>`;
+}
+
+// The word "Alpen" set in each typeface.
+function fontIcon(font) {
+  const face = TYPEFACES[font];
+  return `<span class="font-sample" style="font-family:${face.family.replaceAll('"', "'")};font-weight:${face.weight}">Alpen</span>`;
+}
+
 function radioGroup(container, options, label, short, icon) {
   container.innerHTML = options.map((value) =>
     `<button type="button" role="radio" data-value="${value}" aria-label="${label[value]}">` +
@@ -78,6 +108,10 @@ export function startEditor() {
   const timePicker = document.getElementById('time-picker');
   const roll = document.getElementById('roll-button');
   const sceneryPicker = document.getElementById('scenery-picker');
+  const titleInput = document.getElementById('title-input');
+  const taglineInput = document.getElementById('tagline-input');
+  const fontPicker = document.getElementById('font-picker');
+  const layoutPicker = document.getElementById('layout-picker');
 
   load();
 
@@ -86,6 +120,12 @@ export function startEditor() {
   sceneryPicker.innerHTML = SCENERY.map((name) =>
     `<button type="button" data-layer="${name}" aria-pressed="false">${SCENERY_LABELS[name]}</button>`).join('');
   const sceneryButtons = [...sceneryPicker.querySelectorAll('button')];
+  const fontButtons = radioGroup(fontPicker, Object.keys(TYPEFACES), FONT_LABELS, FONT_LABELS, fontIcon);
+  const layoutButtons = radioGroup(layoutPicker, LAYOUTS, LAYOUT_LABELS, LAYOUT_LABELS, layoutIcon);
+  titleInput.maxLength = MAX_TITLE;
+  taglineInput.maxLength = MAX_TAGLINE;
+  titleInput.value = state.lettering.title;
+  taglineInput.value = state.lettering.tagline;
 
   function render() {
     preview.innerHTML = renderPoster(state);
@@ -101,6 +141,10 @@ export function startEditor() {
     for (const button of timeButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.time));
     for (const button of sceneryButtons) button.setAttribute('aria-pressed', String(state.layers[button.dataset.layer]));
     preview.dataset.layers = SCENERY.filter((name) => state.layers[name]).join(',');
+    preview.dataset.font = state.lettering.font;
+    preview.dataset.layout = state.lettering.layout;
+    for (const button of fontButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.lettering.font));
+    for (const button of layoutButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.lettering.layout));
     roll.hidden = state.peak !== 'random';
     save();
   }
@@ -126,6 +170,27 @@ export function startEditor() {
     const button = event.target.closest('button[data-layer]');
     if (!button) return;
     state.layers[button.dataset.layer] = !state.layers[button.dataset.layer];
+    render();
+  });
+
+  titleInput.addEventListener('input', () => {
+    state.lettering.title = titleInput.value;
+    render();
+  });
+  taglineInput.addEventListener('input', () => {
+    state.lettering.tagline = taglineInput.value;
+    render();
+  });
+  fontPicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-value]');
+    if (!button) return;
+    state.lettering.font = button.dataset.value;
+    render();
+  });
+  layoutPicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-value]');
+    if (!button) return;
+    state.lettering.layout = button.dataset.value;
     render();
   });
 

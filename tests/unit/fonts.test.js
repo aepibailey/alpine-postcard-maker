@@ -7,7 +7,7 @@ import { precacheList } from './helpers.js';
 const fonts = readdirSync('fonts').filter((f) => f.endsWith('.woff2'));
 
 test('fonts are bundled', () => {
-  assert.ok(fonts.length >= 2);
+  assert.ok(fonts.length >= 4);
 });
 
 test('each font has an OFL license file beside it', () => {
