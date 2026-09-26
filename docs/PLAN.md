@@ -254,7 +254,7 @@ Use an external image model when the project needs raster art that code cannot p
 
 ---
 
-# V2 Photo mode — detailed plan (in progress): turn your own mountain photos into posters
+# V2 Photo mode — detailed plan (built; waiting for the owner's phone test): turn your own mountain photos into posters
 
 ### Context
 v1.0.0 is live. The owner asked to "include the option to turn your own mountain photos into post cards", which is the V2 Photo mode already on the roadmap.
@@ -284,7 +284,17 @@ The tag for 1.0.0 is still waiting on the owner ("Not yet").
     - "Photo colours" gets a wider light-to-dark spread and 1.35× chroma.
   - Screenshots are in `docs/screenshots/v2a/`: `<photo>-4/5/6.jpg`, `<photo>-alpenglow/night.jpg`, plus the grids `<photo>-colours.jpg` and `<photo>-inks.jpg`.
   - Crops used in the spike: peak `x=0.36`, lake `x=0.55`, dusk `x=0.42`.
-- **Next, after approval:** Phase V2b below.
+- The owner approved the spike ("Looks great so far"). Their decisions: new photos start in **Photo colours** with **5** colours, and night Poster inks keep a pale sky.
+- **V2b (v2.0.0) is built**, on the same branch and in PR #11:
+  - `src/photo/photo-art.js`: imports photos, loads them, and caches the posterized art.
+  - `src/photo-ui.js`: the photo controls and dragging.
+  - Photo branches in `renderPoster` and `exportPoster`.
+  - IndexedDB v2 with a `photos` store; unused photos are pruned.
+  - Backup v2 with photos.
+  - 12 new unit tests (including `no-network.test.js`) and 10 new e2e tests in `tests/e2e/photo.spec.js`.
+  - Screenshots are in `docs/screenshots/v2b/`.
+- **Next:** the owner tests on the phone and merges. Then V3 (trip series).
+
 
 ### Phase V2a: art spike. The owner approves the look before any controls are built.
 Branch: `claude/alpine-postcard-planning-rqa8hy` already holds part 1 (on top of `main`); continue on it.

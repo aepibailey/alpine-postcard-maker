@@ -1,4 +1,4 @@
-import { listPosters, getPoster, putPoster, deletePoster, keepStorage } from './gallery-db.js';
+import { listPosters, getPoster, putPoster, deletePoster, keepStorage, getPhoto, putPhoto, deletePhoto, listPhotoIds } from './gallery-db.js';
 import { normalizeRecipe, createRecipe, duplicateRecipe } from './recipe.js';
 import { exportPoster } from './export.js';
 
@@ -62,18 +62,28 @@ export async function addPoster(recipe) {
   return entry;
 }
 
+// A photo poster whose photo is gone (e.g. site data was cleared) opens as a drawn poster
+// instead of failing.
+export async function withPhotoChecked(recipe) {
+  if (!recipe.photo) return recipe;
+  const photo = await getPhoto(recipe.photo.id).catch(() => null);
+  if (photo) return recipe;
+  const { photo: _missing, ...drawn } = recipe;
+  return drawn;
+}
+
 // Which poster to show when the app opens.
 export async function startingPoster() {
   const mirror = readJson(CURRENT_MIRROR);
   if (mirror) {
     // The mirror holds the latest edit even if the app was closed before it reached the gallery.
-    const recipe = normalizeRecipe(mirror);
+    const recipe = await withPhotoChecked(normalizeRecipe(mirror));
     const saved = await getPoster(recipe.id);
     if (!saved || recipe.updatedAt > saved.updatedAt) await addPoster(recipe);
     return recipe;
   }
   const posters = await listPosters();
-  if (posters.length) return normalizeRecipe(posters[0].recipe);
+  if (posters.length) return withPhotoChecked(normalizeRecipe(posters[0].recipe));
   // First run of the gallery: bring over the poster from earlier versions, or start fresh.
   const legacy = readJson(LEGACY_EDITOR);
   const recipe = legacy ? normalizeRecipe({ ...legacy, seed: 1931 }) : createRecipe();
@@ -117,8 +127,18 @@ export async function duplicatePoster(id) {
   return saveEntry(duplicateRecipe(entry.recipe), entry.thumbnail);
 }
 
-export async function removePoster(id) {
-  await deletePoster(id);
+// Photos no saved poster uses any more are deleted, except those in `keep` (e.g. the one in the
+// editor that hasn't been saved yet). Copies of a poster share its photo, so it stays while any use it.
+export async function prunePhotos(keep = []) {
+  await queue;
+  const used = new Set(keep.filter(Boolean));
+  for (const entry of await listPosters()) if (entry.recipe?.photo?.id) used.add(entry.recipe.photo.id);
+  for (const id of await listPhotoIds()) if (!used.has(id)) await deletePhoto(id);
 }
 
-export { listPosters, getPoster, putPoster };
+export async function removePoster(id, keep = []) {
+  await deletePoster(id);
+  await prunePhotos(keep).catch(() => {});
+}
+
+export { listPosters, getPoster, putPoster, getPhoto, putPhoto, listPhotoIds };

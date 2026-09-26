@@ -6,6 +6,7 @@ import { SCENERY } from './scene.js';
 import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
 import { PRINT_STYLES } from './styles/print.js';
 import { MAX_TITLE, MAX_TAGLINE, randomSeed, surpriseRecipe } from './recipe.js';
+import { startPhotoControls } from './photo-ui.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
@@ -105,14 +106,23 @@ export function startEditor({ onChange = () => {} } = {}) {
   titleInput.maxLength = MAX_TITLE;
   taglineInput.maxLength = MAX_TAGLINE;
 
+  const photo = startPhotoControls({ state: () => state, render, changed });
+  let view = {};
+
   function render() {
-    preview.innerHTML = renderPoster(state, { id: 'preview' });
+    // Photo posters: which art to draw (the plain photo while it's being dragged).
+    view = photo.update(state);
+    editView.dataset.mode = state.photo ? 'photo' : 'drawn';
+    if (!state.photo) for (const key of ['photo', 'colors', 'inks', 'zoom', 'x', 'y']) delete preview.dataset[key];
+    preview.innerHTML = renderPoster(state, { id: 'preview', ...view });
     preview.dataset.posterId = state.id;
     preview.dataset.peak = state.peak;
     preview.dataset.seed = String(state.peakSeed);
     preview.dataset.time = state.time;
     const peakName = state.peak === 'random' ? `${PEAK_LABELS.random} No. ${state.peakSeed}` : PEAK_LABELS[state.peak];
-    label.textContent = `${peakName} · ${TIME_LABELS[state.time]}`;
+    label.textContent = state.photo
+      ? `Your photo · ${state.photo.colors} colours · ${TIME_LABELS[state.time]}`
+      : `${peakName} · ${TIME_LABELS[state.time]}`;
     for (const button of peakButtons) {
       button.setAttribute('aria-checked', String(button.dataset.value === state.peak));
       button.querySelector('.icon').innerHTML = peakIcon(button.dataset.value, state.peakSeed);
@@ -127,14 +137,14 @@ export function startEditor({ onChange = () => {} } = {}) {
     for (const button of styleButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.style));
     preview.dataset.style = state.style;
     roll.hidden = state.peak !== 'random';
-    if (miniShown) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini' });
+    if (miniShown) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini', ...view });
   }
 
   // A small copy of the poster stays in view while the owner scrolls down to the lower controls.
   function showMini(show) {
     miniShown = show;
     mini.hidden = !show;
-    if (show && state) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini' });
+    if (show && state) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini', ...view });
   }
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(([entry]) => {
@@ -213,9 +223,9 @@ export function startEditor({ onChange = () => {} } = {}) {
     changed();
   });
 
-  // Horizontal swipe on the poster steps through the mountains.
+  // Horizontal swipe on the poster steps through the mountains (on photo posters it moves the photo instead).
   let start = null;
-  preview.addEventListener('pointerdown', (event) => { start = { x: event.clientX, y: event.clientY }; });
+  preview.addEventListener('pointerdown', (event) => { start = state.photo ? null : { x: event.clientX, y: event.clientY }; });
   preview.addEventListener('pointerup', (event) => {
     if (!start) return;
     const dx = event.clientX - start.x;
@@ -231,6 +241,7 @@ export function startEditor({ onChange = () => {} } = {}) {
     // Show a poster (a normalized recipe) in the editor.
     load(recipe) {
       state = structuredClone(recipe);
+      photo.reset(state);
       titleInput.value = state.lettering.title;
       taglineInput.value = state.lettering.tagline;
       render();

@@ -295,6 +295,26 @@ body:not([data-ready]) .tabs, body:not([data-ready]) main > section { visibility
 
 .roll-button[hidden] { display: none; }
 
+/* Photo posters show their own controls instead of the mountain, scenery and print-style pickers. */
+.mode-group { display: contents; }
+.editor[data-mode="photo"] .drawn-only,
+.editor:not([data-mode="photo"]) .photo-only { display: none; }
+
+.poster-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+/* In photo mode, one finger drags the photo inside the poster. */
+.editor[data-mode="photo"] .poster-frame { touch-action: none; cursor: grab; }
+
+.poster-frame.working svg { opacity: 0.7; transition: opacity 0.2s; }
+
+.picker-colors { grid-template-columns: repeat(3, 1fr); }
+
+.picker-colors button { min-height: 56px; }
+
+.picker-colors svg { max-width: 60px; height: 20px; border-radius: 3px; }
+
+.field-range input { padding: 0; border: 0; background: none; accent-color: var(--navy); min-height: 32px; }
+
 .hint { margin: 0; font-size: 0.85rem; opacity: 0.75; text-align: center; }
 
 .status { margin: 0; font-size: 0.9rem; text-align: center; }

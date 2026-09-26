@@ -19,6 +19,26 @@ export function newId() {
 
 const isInt = (v) => Number.isInteger(v) && v >= 0;
 const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
+const clamp = (v, lo, hi, fallback) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback);
+
+// Photo posters: which photo (stored on the phone), which part of it is shown (x, y = centre,
+// 0–1; zoom 1–3), how many inks (4–6) and whether they are the photo's own colours or the
+// time-of-day palette's.
+export const PHOTO_COLORS = [4, 5, 6];
+export const PHOTO_INKS = ['photo', 'poster'];
+export const MAX_ZOOM = 3;
+
+export function normalizePhoto(raw) {
+  if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !raw.id) return undefined;
+  return {
+    id: raw.id,
+    x: clamp(raw.x, 0, 1, 0.5),
+    y: clamp(raw.y, 0, 1, 0.5),
+    zoom: clamp(raw.zoom, 1, MAX_ZOOM, 1),
+    colors: pick(raw.colors, PHOTO_COLORS, 5),
+    inks: pick(raw.inks, PHOTO_INKS, 'photo'),
+  };
+}
 
 export function normalizeRecipe(raw = {}) {
   const r = raw && typeof raw === 'object' ? raw : {};
@@ -26,9 +46,11 @@ export function normalizeRecipe(raw = {}) {
   const l = r.lettering && typeof r.lettering === 'object' ? r.lettering : {};
   const legacySpaced = l.layout === 'spaced';
   const layers = sceneryOf(r);
-  const { scene: _legacyScene, ...rest } = r;
+  const { scene: _legacyScene, photo: rawPhoto, ...rest } = r;
+  const photo = normalizePhoto(rawPhoto);
   return {
     ...rest,
+    ...(photo ? { photo } : {}),
     schemaVersion: SCHEMA_VERSION,
     id: typeof r.id === 'string' && r.id ? r.id : newId(),
     createdAt: isInt(r.createdAt) ? r.createdAt : now,
@@ -76,9 +98,18 @@ export function duplicateRecipe(recipe) {
 }
 
 // "Surprise me": a whole new look for the poster (mountain, sky, scenery, lettering style and
-// print finish). The owner's destination and tagline are kept.
+// print finish). The owner's destination and tagline are kept. A photo poster keeps its photo and
+// framing, and gets new inks, time of day and lettering style instead.
 export function surpriseRecipe(recipe, random = Math.random) {
   const choose = (list) => list[Math.floor(random() * list.length)];
+  if (recipe.photo) {
+    return normalizeRecipe({
+      ...recipe,
+      time: choose(Object.keys(PALETTES)),
+      photo: { ...recipe.photo, colors: choose(PHOTO_COLORS), inks: choose(PHOTO_INKS) },
+      lettering: { ...recipe.lettering, font: choose(Object.keys(TYPEFACES)), layout: choose(LAYOUTS) },
+    });
+  }
   const seed = () => 1 + Math.floor(random() * 999998);
   const layers = Object.fromEntries(SCENERY.map((name) => [name, random() < 0.4]));
   if (!SCENERY.some((name) => layers[name])) layers[choose(SCENERY)] = true;

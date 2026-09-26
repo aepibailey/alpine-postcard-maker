@@ -1,6 +1,6 @@
 import * as store from './store.js';
 import { createRecipe, normalizeRecipe } from './recipe.js';
-import { makeBackup, parseBackup, planRestore, backupFileName, dataUrlToBlob } from './backup.js';
+import { makeBackup, readBackup, planRestore, backupFileName, dataUrlToBlob } from './backup.js';
 import { downloadFile } from './export.js';
 import { isStorageKept } from './gallery-db.js';
 
@@ -61,7 +61,7 @@ export async function startGallery(editor) {
     await store.flush();
     const entry = await store.getPoster(id);
     if (!entry) return;
-    const recipe = normalizeRecipe(entry.recipe);
+    const recipe = await store.withPhotoChecked(normalizeRecipe(entry.recipe));
     store.setCurrent(recipe);
     editor.load(recipe);
     show('edit');
@@ -89,11 +89,11 @@ export async function startGallery(editor) {
       status.textContent = `Copied “${title}”.`;
     } else if (button.dataset.action === 'delete') {
       if (!confirm(`Delete “${title}”? This can't be undone.`)) return;
-      await store.removePoster(id);
+      await store.removePoster(id, id === editor.current()?.id ? [] : [editor.current()?.photo?.id]);
       status.textContent = `Deleted “${title}”.`;
       if (id === editor.current()?.id) {
         const [next] = await store.listPosters();
-        const recipe = next ? normalizeRecipe(next.recipe) : createRecipe();
+        const recipe = next ? await store.withPhotoChecked(normalizeRecipe(next.recipe)) : createRecipe();
         if (!next) await store.addPoster(recipe);
         store.setCurrent(recipe);
         editor.load(recipe);
@@ -105,7 +105,7 @@ export async function startGallery(editor) {
   $('backup-button').addEventListener('click', async () => {
     await store.flush();
     const posters = await store.listPosters();
-    const json = await makeBackup(posters);
+    const json = await makeBackup(posters, new Date(), async (photoId) => (await store.getPhoto(photoId))?.blob ?? null);
     downloadFile(new File([json], backupFileName(), { type: 'application/json' }));
     status.textContent = `Backed up ${posters.length} poster${posters.length === 1 ? '' : 's'} to your Downloads.`;
   });
@@ -116,8 +116,9 @@ export async function startGallery(editor) {
     restoreInput.value = '';
     if (!file) return;
     try {
-      const incoming = parseBackup(await file.text());
-      const plan = planRestore(await store.listPosters(), incoming);
+      const { posters, photos } = readBackup(await file.text());
+      const plan = planRestore(await store.listPosters(), posters, photos, await store.listPhotoIds());
+      for (const photo of plan.photos) await store.putPhoto({ id: photo.id, blob: await dataUrlToBlob(photo.dataUrl) });
       for (const item of plan.write) {
         const thumbnail = item.thumbnail ? await dataUrlToBlob(item.thumbnail) : await store.thumbnailFor(item.recipe);
         await store.putPoster({ id: item.recipe.id, recipe: item.recipe, thumbnail, updatedAt: item.recipe.updatedAt });

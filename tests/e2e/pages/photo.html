@@ -11,7 +11,7 @@
 <body>
   <script type="module">
     import { posterize } from '../../../src/photo/posterize.js';
-    import { cropToImageData, imageDataToUrl, renderPhotoPoster } from '../../../src/photo/photo-poster.js';
+    import { cropToImageData, imageDataToUrl, renderPhotoPoster, lightnessRows } from '../../../src/photo/photo-poster.js';
     import { PALETTES } from '../../../src/palettes.js';
     const q = new URLSearchParams(location.search);
     const num = (k, d) => (q.has(k) ? Number(q.get(k)) : d);
@@ -28,7 +28,7 @@
       lettering: { title: q.get('title') ?? 'Destination', tagline: q.get('tagline') ?? '', layout: q.get('layout') ?? 'top', font: q.get('font') ?? 'limelight' },
     };
     for (const f of ["100px 'Limelight'", "700 100px 'Josefin Sans'", "100px 'Poiret One'", "100px 'Bebas Neue'"]) await document.fonts.load(f);
-    document.body.innerHTML = renderPhotoPoster(recipe, poster, imageDataToUrl(poster));
+    document.body.innerHTML = renderPhotoPoster(recipe, { url: imageDataToUrl(poster), inks: poster.inks, rows: lightnessRows(poster) });
     document.body.dataset.ready = 'true';
   </script>
 </body>

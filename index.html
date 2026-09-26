@@ -37,21 +37,26 @@
         <button type="button" class="action-button" id="backup-button">Back up gallery</button>
         <button type="button" class="action-button secondary" id="restore-button">Restore…</button>
       </div>
-      <p class="hint">A backup is one file in your Downloads. Keep a copy somewhere safe, e.g. Google Drive.</p>
+      <p class="hint">A backup is one file in your Downloads. Keep a copy somewhere safe, e.g. Google Drive. Backups with photos are bigger.</p>
       <input type="file" id="restore-input" accept=".json,application/json" hidden>
     </section>
 
     <section class="editor" id="edit-view" role="tabpanel" aria-labelledby="edit-tab" aria-label="Poster editor">
       <div class="welcome" id="welcome" role="note" aria-labelledby="welcome-heading" hidden>
         <h2 id="welcome-heading">Welcome!</h2>
-        <p>Make your own vintage Alpine poster. Scroll down to pick a mountain, the time of day, scenery and lettering &mdash; or tap <strong>✨ Surprise me</strong>. Then save it to your phone.</p>
+        <p>Make your own vintage Alpine poster. Scroll down to pick a mountain, the time of day, scenery and lettering &mdash; or tap <strong>✨ Surprise me</strong>. You can also turn one of your own photos into a poster with <strong>📷 Use your photo</strong>. Then save it to your phone.</p>
         <p>Every poster is kept in your Gallery, on this phone only. It all works without internet.</p>
         <button type="button" class="action-button" id="welcome-button">Got it</button>
       </div>
       <figure class="poster-frame" id="preview" aria-live="polite"></figure>
       <p class="peak-label" id="peak-label"></p>
-      <button type="button" class="roll-button surprise-button" id="surprise-button">✨ Surprise me</button>
-      <p class="hint">Keeps your destination and tagline.</p>
+      <p class="export-status" id="photo-status" aria-live="polite"></p>
+      <div class="poster-actions">
+        <button type="button" class="roll-button surprise-button" id="surprise-button">✨ Surprise me</button>
+        <button type="button" class="roll-button" id="photo-button">📷 Use your photo</button>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" hidden>
+      <p class="hint" id="surprise-hint">Surprise me keeps your destination and tagline.</p>
       <h2 class="picker-heading" id="size-heading">Save your poster</h2>
       <div class="picker picker-size" id="size-picker" role="radiogroup" aria-labelledby="size-heading"></div>
       <div class="segmented" id="fit-picker" role="radiogroup" aria-label="Wallpaper and square layout"></div>
@@ -60,13 +65,29 @@
         <button type="button" class="action-button secondary" id="save-button">Save to phone</button>
       </div>
       <p class="export-status" id="export-status" aria-live="polite"></p>
-      <h2 class="picker-heading" id="peak-heading">Mountain</h2>
-      <div class="picker" id="peak-picker" role="radiogroup" aria-labelledby="peak-heading"></div>
-      <button type="button" class="roll-button" id="roll-button" hidden>🎲 New ridgeline</button>
+      <div class="mode-group photo-only" id="photo-controls">
+        <h2 class="picker-heading" id="photo-colors-heading">Colours</h2>
+        <div class="picker picker-colors" id="photo-colors-picker" role="radiogroup" aria-labelledby="photo-colors-heading"></div>
+        <h2 class="picker-heading" id="photo-inks-heading">Inks</h2>
+        <div class="segmented" id="photo-inks-picker" role="radiogroup" aria-labelledby="photo-inks-heading"></div>
+        <label class="field field-range">
+          <span>Zoom</span>
+          <input type="range" id="photo-zoom" min="1" max="3" step="0.05" value="1">
+        </label>
+        <p class="hint">Drag the poster to move your photo.</p>
+        <button type="button" class="action-button secondary" id="drawn-button">⛰ Back to drawn mountain</button>
+      </div>
+      <div class="mode-group drawn-only">
+        <h2 class="picker-heading" id="peak-heading">Mountain</h2>
+        <div class="picker" id="peak-picker" role="radiogroup" aria-labelledby="peak-heading"></div>
+        <button type="button" class="roll-button" id="roll-button" hidden>🎲 New ridgeline</button>
+      </div>
       <h2 class="picker-heading" id="time-heading">Time of day</h2>
       <div class="picker picker-time" id="time-picker" role="radiogroup" aria-labelledby="time-heading"></div>
-      <h2 class="picker-heading" id="scenery-heading">Scenery</h2>
-      <div class="toggles" id="scenery-picker" role="group" aria-labelledby="scenery-heading"></div>
+      <div class="mode-group drawn-only">
+        <h2 class="picker-heading" id="scenery-heading">Scenery</h2>
+        <div class="toggles" id="scenery-picker" role="group" aria-labelledby="scenery-heading"></div>
+      </div>
       <h2 class="picker-heading">Lettering</h2>
       <label class="field">
         <span>Destination</span>
@@ -80,9 +101,11 @@
       <div class="picker picker-font" id="font-picker" role="radiogroup" aria-labelledby="font-heading"></div>
       <h2 class="picker-heading" id="layout-heading">Title placement</h2>
       <div class="picker picker-layout" id="layout-picker" role="radiogroup" aria-labelledby="layout-heading"></div>
-      <h2 class="picker-heading" id="style-heading">Print style</h2>
-      <div class="picker picker-style" id="style-picker" role="radiogroup" aria-labelledby="style-heading"></div>
-      <p class="hint">Tip: swipe the poster to change the mountain</p>
+      <div class="mode-group drawn-only">
+        <h2 class="picker-heading" id="style-heading">Print style</h2>
+        <div class="picker picker-style" id="style-picker" role="radiogroup" aria-labelledby="style-heading"></div>
+        <p class="hint">Tip: swipe the poster to change the mountain</p>
+      </div>
     </section>
     <button type="button" class="mini-preview" id="mini-preview" aria-label="Back up to the poster" hidden><span class="mini-art" aria-hidden="true"></span></button>
     <p class="status" id="offline-status">Checking offline support…</p>
@@ -100,7 +123,7 @@
     <h3>Original art</h3>
     <p>Every mountain, village and sky is drawn by this app's own code, in the spirit of 1930s travel posters. Nothing is copied or traced from real posters, logos or brands.</p>
     <h3>Your privacy</h3>
-    <p>Your posters never leave this phone unless you share or save them yourself. The app has no accounts, no tracking and no sound, and works without internet.</p>
+    <p>Your posters and photos never leave this phone unless you share or save them yourself. The app has no accounts, no tracking and no sound, and works without internet.</p>
     <h3>Storage</h3>
     <p id="about-storage">Checking…</p>
     <h3>Typefaces</h3>
