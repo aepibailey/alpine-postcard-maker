@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab } from '../../src/photo/posterize.js';
+import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab, mergeSmall, downscale } from '../../src/photo/posterize.js';
 import { PALETTES } from '../../src/palettes.js';
 import { createRng } from '../../src/rng.js';
 
@@ -37,15 +37,15 @@ test('k-means is repeatable with the same seed', () => {
 
 test('a poster uses at most the chosen number of inks', () => {
   for (const colors of [4, 5, 6]) {
-    const out = posterize(fakePhoto(), { colors, inks: 'photo', seed: 2 });
+    const out = posterize(fakePhoto(), { colors, inks: 'photo', seed: 2, antialias: false });
     assert.ok(distinct(out) <= colors, `${colors} colours → ${distinct(out)}`);
     assert.equal(out.data.length, 90 * 135 * 4);
   }
 });
 
 test('colour count is clamped to 4–6', () => {
-  assert.ok(distinct(posterize(fakePhoto(), { colors: 2, inks: 'photo' })) <= 4);
-  assert.ok(distinct(posterize(fakePhoto(), { colors: 99, inks: 'photo' })) <= 6);
+  assert.ok(distinct(posterize(fakePhoto(), { colors: 2, inks: 'photo', antialias: false })) <= 4);
+  assert.ok(distinct(posterize(fakePhoto(), { colors: 99, inks: 'photo', antialias: false })) <= 6);
 });
 
 test('poster inks come only from the palette and keep dark-to-light order', () => {
@@ -70,4 +70,46 @@ test('smoothing removes lone specks', () => {
 test('assign gives every pixel its nearest centre', () => {
   const image = { width: 2, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]) };
   assert.deepEqual([...assign(image, [toLab(255, 255, 255), toLab(0, 0, 0)])], [1, 0]);
+});
+
+test('small islands join the ink around them; big shapes stay', () => {
+  const w = 20, h = 20;
+  const labels = new Uint8Array(w * h);
+  labels[5 * w + 5] = 1; labels[5 * w + 6] = 1; // 2-pixel island
+  for (let y = 10; y < 20; y++) for (let x = 10; x < 20; x++) labels[y * w + x] = 2; // 100-pixel block
+  const out = mergeSmall(labels, w, h, 10);
+  assert.equal(out[5 * w + 5], 0);
+  assert.equal(out[15 * w + 15], 2);
+});
+
+test('downscale keeps the aspect and averages colour', () => {
+  const image = { width: 4, height: 2, data: new Uint8ClampedArray([0, 0, 0, 255, 200, 200, 200, 255, 0, 0, 0, 255, 200, 200, 200, 255, 0, 0, 0, 255, 200, 200, 200, 255, 0, 0, 0, 255, 200, 200, 200, 255]) };
+  const out = downscale(image, 2);
+  assert.equal(out.width, 2);
+  assert.equal(out.height, 1);
+  assert.equal(out.data[0], 100);
+});
+
+test('a small preview and a big export are cut into the same shapes', () => {
+  const small = fakePhoto(600, 900);
+  const big = { width: 1200, height: 1800, data: new Uint8ClampedArray(1200 * 1800 * 4) };
+  for (let y = 0; y < 1800; y++) {
+    for (let x = 0; x < 1200; x++) {
+      const from = ((y >> 1) * 600 + (x >> 1)) * 4, to = (y * 1200 + x) * 4;
+      for (let c = 0; c < 4; c++) big.data[to + c] = small.data[from + c];
+    }
+  }
+  const a = posterize(small, { colors: 5, inks: 'photo', antialias: false });
+  const b = posterize(big, { colors: 5, inks: 'photo', antialias: false });
+  const inkOf = (out, p) => out.inks.findIndex((c) => c[0] === out.data[p * 4] && c[1] === out.data[p * 4 + 1] && c[2] === out.data[p * 4 + 2]);
+  const sameInk = a.inks.map((c) => b.inks.findIndex((d) => d.every((v, j) => Math.abs(v - c[j]) <= 8)));
+  assert.ok(sameInk.every((j) => j >= 0), 'both sizes pick the same inks');
+  let match = 0, n = 0;
+  for (let y = 0; y < 900; y += 7) {
+    for (let x = 0; x < 600; x += 7) {
+      n++;
+      if (sameInk[inkOf(a, y * 600 + x)] === inkOf(b, (2 * y) * 1200 + 2 * x)) match++;
+    }
+  }
+  assert.ok(match / n > 0.95, `${Math.round((100 * match) / n)}% of the poster matches`);
 });

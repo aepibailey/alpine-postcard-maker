@@ -271,26 +271,20 @@ The model best suited is Opus, because the image processing needs visual judgeme
 
 The tag for 1.0.0 is still waiting on the owner ("Not yet").
 
-### Progress (pushed to branch, no PR yet)
-- Commit "Photo mode art spike, part 1" (v1.0.1) added:
-  - `src/photo/posterize.js`: blur, k-means, majority smoothing, poster and photo inks;
-  - `src/photo/photo-poster.js`: crop, lettering inks with contrast, border;
-  - `tests/e2e/pages/photo.html` and `scripts/photo-shots.mjs`;
-  - a code-made `standin.jpg`;
-  - 6 unit tests.
-- 60 unit and 37 e2e tests pass.
-- The owner is changing Network access via claude.ai/code in Chrome (the mobile app may not show the setting). They will start a **new session** with "continue the photo mode art spike".
-
-### Blocker (network)
-- The environment's network policy blocks `commons.wikimedia.org` and `upload.wikimedia.org`.
-- The owner chose to allow Wikimedia in the environment settings: title bar → cloud environment → Edit → Network access.
-- **First step on resume:** `curl -sS -o /dev/null -w "%{http_code}" https://commons.wikimedia.org/`.
-  - If it's reachable, query the Commons API for mountain photos whose `LicenseShortName` is CC0 or Public domain. Pick 3 varied ones:
-    - a jagged peak;
-    - a broad massif with a lake;
-    - a snowy slope at dusk.
-  - Download them at 1200px and record their sources in CREDITS.md.
-  - If it's still blocked, remind the owner once. Meanwhile build `src/photo/posterize.js` and its unit tests, since they need no photos.
+### Progress
+- Part 1 (v1.0.1): first engine, spike page `tests/e2e/pages/photo.html`, `scripts/photo-shots.mjs`, a code-made `standin.jpg`.
+- Part 2 (v1.0.2), art spike finished, **waiting for the owner's approval in the "art spike" PR**:
+  - Wikimedia became reachable. The API rate-limits the shared cloud IP (HTTP 429), so go slowly. `thumb.wikimedia.org` is blocked, but the same thumbnail path on `upload.wikimedia.org` works.
+  - 3 CC0 photos are in `tests/fixtures/photos/` (`peak.jpg`, `lake.jpg`, `dusk.jpg`), with sources in `CREDITS.md`.
+  - The engine was reworked:
+    - The shapes are always worked out at a fixed 540px (`WORK_SIZE`), so the preview and export match; it's also about 5× faster (≈0.6 s for 1200×1800 in headless Chromium).
+    - An unsharp mask comes first, and k-means runs in Lab with lightness weighted 1.5×, so snowy peaks don't melt into a pale sky.
+    - `mergeSmall` removes islands under 1/1200 of the picture.
+    - `renderLabels` scales the label map up with smooth, anti-aliased contours, like cut stencils.
+    - "Photo colours" gets a wider light-to-dark spread and 1.35× chroma.
+  - Screenshots are in `docs/screenshots/v2a/`: `<photo>-4/5/6.jpg`, `<photo>-alpenglow/night.jpg`, plus the grids `<photo>-colours.jpg` and `<photo>-inks.jpg`.
+  - Crops used in the spike: peak `x=0.36`, lake `x=0.55`, dusk `x=0.42`.
+- **Next, after approval:** Phase V2b below.
 
 ### Phase V2a: art spike. The owner approves the look before any controls are built.
 Branch: `claude/alpine-postcard-planning-rqa8hy` already holds part 1 (on top of `main`); continue on it.

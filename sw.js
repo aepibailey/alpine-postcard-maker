@@ -1,5 +1,5 @@
 // Bump CACHE together with src/version.js whenever any precached file changes.
-const CACHE = 'apm-1.0.1';
+const CACHE = 'apm-1.0.2';
 
 // Relative to the service worker's location, so it works under /alpine-postcard-maker/.
 const PRECACHE = [

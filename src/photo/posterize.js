@@ -22,6 +22,15 @@ export function toLab(r, g, b) {
   return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
+// Lab with lightness counted a bit more than hue: posters are built on a clear light/dark
+// structure (snow, rock, shadow), so a snowy peak doesn't melt into a pale sky of the same tint.
+const L_WEIGHT = 1.5;
+const toKey = (r, g, b) => {
+  const [L, a, bb] = toLab(r, g, b);
+  return [L * L_WEIGHT, a, bb];
+};
+const fromKey = ([L, a, b]) => [L / L_WEIGHT, a, b];
+
 const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
 
 // k-means++ on a sample of Lab pixels. Seeded, so the same photo always gives the same inks.
@@ -70,7 +79,7 @@ export function samplePixels(image, count = 20000) {
   for (let y = Math.floor(step / 2); y < height; y += step) {
     for (let x = Math.floor(step / 2); x < width; x += step) {
       const i = (y * width + x) * 4;
-      out.push(toLab(data[i], data[i + 1], data[i + 2]));
+      out.push(toKey(data[i], data[i + 1], data[i + 2]));
     }
   }
   return out;
@@ -86,7 +95,7 @@ export function assign(image, centres) {
     const key = ((data[i] >> 2) << 12) | ((data[i + 1] >> 2) << 6) | (data[i + 2] >> 2);
     let l = cache.get(key);
     if (l === undefined) {
-      l = nearest(toLab(data[i], data[i + 1], data[i + 2]), centres);
+      l = nearest(toKey(data[i], data[i + 1], data[i + 2]), centres);
       cache.set(key, l);
     }
     labels[p] = l;
@@ -124,6 +133,16 @@ export function blur(image, radius) {
   const data = new Uint8ClampedArray(src.length);
   for (let i = 0; i < src.length; i++) data[i] = (i & 3) === 3 ? 255 : src[i];
   return { width, height, data };
+}
+
+// Unsharp mask: lifts local contrast so ridges and snow edges split cleanly into inks.
+export function sharpen(image, radius = 3, amount = 0.6) {
+  const soft = blur(image, radius);
+  const data = new Uint8ClampedArray(image.data.length);
+  for (let i = 0; i < data.length; i++) {
+    data[i] = (i & 3) === 3 ? 255 : image.data[i] + (image.data[i] - soft.data[i]) * amount;
+  }
+  return { width: image.width, height: image.height, data };
 }
 
 // Majority filter: each pixel takes the most common ink around it, which melts away speckle
@@ -189,24 +208,152 @@ export function toInks(centres, palette) {
   return inks;
 }
 
-// "Photo colours": the photo's own colours, a touch richer, like fresh ink.
+// "Photo colours": the photo's own colours as fresh ink: richer, with a wider dark-to-light
+// spread, the way a printer would mix them.
 export function photoInks(centres) {
-  return centres.map(([L, a, b]) => labToRgb([L, a * 1.15, b * 1.15]));
+  const Ls = centres.map((c) => c[0]);
+  const lo = Math.min(...Ls), hi = Math.max(...Ls);
+  const newLo = Math.max(10, lo - 10), newHi = Math.min(97, hi + 6);
+  const stretch = (L) => (hi - lo < 1 ? L : newLo + ((L - lo) * (newHi - newLo)) / (hi - lo));
+  return centres.map(([L, a, b]) => labToRgb([stretch(L), a * 1.35, b * 1.35]));
 }
 
-// Photo → flat-ink poster image. Returns { width, height, data, inks }.
-// Softening and smoothing scale with the image, so the preview and a big export look alike.
-export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, detail = 1 } = {}) {
-  const k = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(colors)));
-  const scale = Math.max(image.width, image.height) / 1800;
-  const soft = blur(image, Math.round(3 * scale / detail));
-  const centres = kmeans(samplePixels(soft), k, createRng(seed));
-  const labels = smooth(assign(soft, centres), image.width, image.height, Math.max(1, Math.round(3 * scale / detail)), 2);
-  const colours = inks === 'poster' && palette ? toInks(centres, palette) : photoInks(centres);
-  const data = new Uint8ClampedArray(image.width * image.height * 4);
-  for (let p = 0; p < labels.length; p++) {
-    const c = colours[labels[p]];
-    data[p * 4] = c[0]; data[p * 4 + 1] = c[1]; data[p * 4 + 2] = c[2]; data[p * 4 + 3] = 255;
+// Area-average downscale so the long edge is at most `size`.
+export function downscale(image, size) {
+  const { width, height, data } = image;
+  const s = size / Math.max(width, height);
+  if (s >= 1) return image;
+  const w = Math.max(1, Math.round(width * s)), h = Math.max(1, Math.round(height * s));
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.floor((y * height) / h), y1 = Math.max(y0 + 1, Math.floor(((y + 1) * height) / h));
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.floor((x * width) / w), x1 = Math.max(x0 + 1, Math.floor(((x + 1) * width) / w));
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+          const i = (yy * width + xx) * 4;
+          r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+        }
+      }
+      const o = (y * w + x) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = 255;
+    }
   }
+  return { width: w, height: h, data: out };
+}
+
+// Islands of one ink smaller than `minArea` pixels join the ink around them, so the picture
+// keeps only shapes big enough to cut as a stencil.
+export function mergeSmall(labels, width, height, minArea) {
+  const out = Uint8Array.from(labels);
+  const seen = new Int32Array(out.length).fill(-1);
+  const stack = new Int32Array(out.length);
+  const members = [];
+  for (let start = 0; start < out.length; start++) {
+    if (seen[start] !== -1) continue;
+    const l = out[start];
+    let top = 0;
+    stack[top++] = start;
+    seen[start] = start;
+    members.length = 0;
+    const around = new Map();
+    while (top) {
+      const p = stack[--top];
+      members.push(p);
+      const x = p % width;
+      for (const q of [x > 0 ? p - 1 : -1, x < width - 1 ? p + 1 : -1, p - width, p + width]) {
+        if (q < 0 || q >= out.length) continue;
+        if (out[q] === l) {
+          if (seen[q] === -1) { seen[q] = start; stack[top++] = q; }
+        } else around.set(out[q], (around.get(out[q]) ?? 0) + 1);
+      }
+    }
+    if (members.length < minArea && around.size) {
+      let best = l, bestN = 0;
+      for (const [k, n] of around) if (n > bestN) { bestN = n; best = k; }
+      for (const p of members) out[p] = best;
+    }
+  }
+  return out;
+}
+
+// Label map → full-size image with smooth, softly anti-aliased edges: each ink's mask is
+// softened a little, scaled up, and every pixel takes the strongest ink (blending with the
+// runner-up only right at an edge).
+export function renderLabels(labels, lw, lh, width, height, colours, antialias = true) {
+  const k = colours.length;
+  const masks = [];
+  for (let j = 0; j < k; j++) {
+    const m = new Float32Array(lw * lh);
+    for (let p = 0; p < m.length; p++) m[p] = labels[p] === j ? 1 : 0;
+    masks.push(boxBlur1(boxBlur1(m, lw, lh), lw, lh));
+  }
+  const data = new Uint8ClampedArray(width * height * 4);
+  const sx = lw / width, sy = lh / height;
+  const sharp = 1.25 * Math.max(1, width / lw);
+  for (let y = 0; y < height; y++) {
+    const fy = Math.min(lh - 1, Math.max(0, (y + 0.5) * sy - 0.5));
+    const y0 = Math.floor(fy), y1 = Math.min(lh - 1, y0 + 1), ty = fy - y0;
+    for (let x = 0; x < width; x++) {
+      const fx = Math.min(lw - 1, Math.max(0, (x + 0.5) * sx - 0.5));
+      const x0 = Math.floor(fx), x1 = Math.min(lw - 1, x0 + 1), tx = fx - x0;
+      const a = y0 * lw + x0, b = y0 * lw + x1, c = y1 * lw + x0, d = y1 * lw + x1;
+      let best = 0, bestS = -1, second = 0, secondS = -1;
+      for (let j = 0; j < k; j++) {
+        const m = masks[j];
+        const s = (m[a] * (1 - tx) + m[b] * tx) * (1 - ty) + (m[c] * (1 - tx) + m[d] * tx) * ty;
+        if (s > bestS) { second = best; secondS = bestS; best = j; bestS = s; } else if (s > secondS) { second = j; secondS = s; }
+      }
+      const o = (y * width + x) * 4;
+      const c1 = colours[best];
+      const t = antialias && secondS > 0 ? Math.min(1, 0.5 + (bestS - secondS) * sharp) : 1;
+      if (t >= 1) {
+        data[o] = c1[0]; data[o + 1] = c1[1]; data[o + 2] = c1[2];
+      } else {
+        const c2 = colours[second];
+        data[o] = c2[0] + (c1[0] - c2[0]) * t; data[o + 1] = c2[1] + (c1[1] - c2[1]) * t; data[o + 2] = c2[2] + (c1[2] - c2[2]) * t;
+      }
+      data[o + 3] = 255;
+    }
+  }
+  return data;
+}
+
+// 3×3 box blur of a single-channel map, edges clamped.
+function boxBlur1(src, w, h) {
+  const tmp = new Float32Array(src.length), out = new Float32Array(src.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      tmp[p] = (src[x > 0 ? p - 1 : p] + src[p] + src[x < w - 1 ? p + 1 : p]) / 3;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      out[p] = (tmp[y > 0 ? p - w : p] + tmp[p] + tmp[y < h - 1 ? p + w : p]) / 3;
+    }
+  }
+  return out;
+}
+
+// The shapes are always worked out at this size (long edge), so the small preview and a big
+// export are cut the same way; only the final edges are drawn at full size.
+export const WORK_SIZE = 540;
+
+// Photo → flat-ink poster image. Returns { width, height, data, inks }.
+// `detail` (0.5–2) makes the shapes finer or bolder. `antialias: false` keeps edges pure ink.
+export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, detail = 1, antialias = true } = {}) {
+  const k = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(colors)));
+  const work = blur(sharpen(downscale(image, Math.round(WORK_SIZE * detail))), 1);
+  const { width: w, height: h } = work;
+  const centres = kmeans(samplePixels(work), k, createRng(seed));
+  const lab = centres.map(fromKey);
+  let labels = smooth(assign(work, centres), w, h, 1, 2);
+  labels = mergeSmall(labels, w, h, Math.max(4, Math.round((w * h) / 1200)));
+  labels = smooth(labels, w, h, 2, 1);
+  const colours = inks === 'poster' && palette ? toInks(lab, palette) : photoInks(lab);
+  const data = renderLabels(labels, w, h, image.width, image.height, colours, antialias);
   return { width: image.width, height: image.height, data, inks: colours };
 }
