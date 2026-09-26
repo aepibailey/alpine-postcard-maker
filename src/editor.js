@@ -6,6 +6,7 @@ import { polygon } from './svg.js';
 import { SCENERY } from './scene.js';
 import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
 import { PRINT_STYLES } from './styles/print.js';
+import { startExport } from './export-ui.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
@@ -241,4 +242,5 @@ export function startEditor() {
   preview.addEventListener('pointercancel', () => { start = null; });
 
   render();
+  startExport(() => structuredClone(state));
 }

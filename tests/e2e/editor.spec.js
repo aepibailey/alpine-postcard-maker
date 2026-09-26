@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { PALETTES } from '../../src/palettes.js';
 
-const SHOTS = 'docs/screenshots/m5';
+const SHOTS = 'docs/screenshots/m6';
 const posterMarkup = (page) => page.locator('#preview').innerHTML();
 
 test('picker switches between the four mountains', async ({ page }) => {
