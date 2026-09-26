@@ -3,8 +3,10 @@ import { startEditor } from './editor.js';
 import { startExport } from './export-ui.js';
 import { startGallery } from './gallery-ui.js';
 import * as store from './store.js';
+import { startWelcome, startAbout } from './about.js';
 
 document.getElementById('app-version').textContent = VERSION;
+startAbout();
 
 async function startApp() {
   let gallery;
@@ -12,6 +14,7 @@ async function startApp() {
   editor.load(await store.startingPoster());
   startExport(() => editor.current());
   gallery = await startGallery(editor);
+  startWelcome();
   // Save straight away if the app is sent to the background or closed.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') store.flush({ withThumbnail: false });

@@ -41,6 +41,7 @@ test('🎲 rolls a new ridgeline each time', async ({ page }) => {
 test('swiping the poster steps through the mountains', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('radio', { name: 'Jagged spire' }).click();
+  await page.locator('#preview').scrollIntoViewIfNeeded();
   const box = await page.locator('#preview').boundingBox();
   const y = box.y + box.height / 2;
   const swipe = async (from, to) => {

@@ -105,17 +105,19 @@ test('an edit made just before the app is closed is not lost', async ({ page }) 
 });
 
 test('the poster from earlier versions moves into the gallery', async ({ page }) => {
-  await page.goto('./');
-  await page.evaluate(async () => {
-    localStorage.clear();
-    await new Promise((resolve) => { const r = indexedDB.deleteDatabase('alpine-postcard-maker'); r.onsuccess = r.onerror = r.onblocked = resolve; });
+  // Set up a phone that only ever ran v0.7: the old single-poster save, and no gallery yet.
+  // (Done on a page that isn't the app, so the app can't write anything in the meantime.)
+  await page.goto('tests/e2e/pages/poster.html');
+  await page.evaluate(() => {
     localStorage.setItem('apm.editor', JSON.stringify({ peak: 'pyramid', time: 'night', lettering: { title: 'From v0.7', tagline: 'kept', layout: 'arched', font: 'bebas' }, style: 'aged' }));
   });
-  await page.reload();
+  await page.goto('./');
   await expect(title(page)).toHaveValue('From v0.7');
   await expect(page.locator('#preview')).toHaveAttribute('data-peak', 'pyramid');
   await expect(page.locator('#preview')).toHaveAttribute('data-style', 'aged');
   await expect(page.getByRole('tab', { name: /Gallery \(1\)/ })).toBeVisible();
+  // The old save is tidied away once it is in the gallery.
+  expect(await page.evaluate(() => localStorage.getItem('apm.editor'))).toBeNull();
 });
 
 test('the gallery works offline', async ({ page, context }) => {
