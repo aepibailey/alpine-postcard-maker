@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { PALETTES } from '../../src/palettes.js';
 
-const SHOTS = 'docs/screenshots/m4';
+const SHOTS = 'docs/screenshots/m5';
 const posterMarkup = (page) => page.locator('#preview').innerHTML();
 
 test('picker switches between the four mountains', async ({ page }) => {
@@ -126,7 +126,6 @@ test('typeface and placement pickers restyle the title', async ({ page }) => {
     await expect(preview).toHaveAttribute('data-layout', layout);
     await expect(preview.locator('[data-role="lettering"]').first()).toContainText('ZERMATT');
     if (layout === 'arched') await expect(preview.locator('textPath')).toHaveCount(1);
-    await page.screenshot({ path: `${SHOTS}/app-${layout}.png`, fullPage: true });
   }
 });
 
@@ -152,6 +151,20 @@ test('long names stay inside the poster in every typeface and placement', async 
   }
 });
 
+test('print style picker switches the finish', async ({ page }) => {
+  await page.goto('./');
+  await page.evaluate(() => document.fonts.ready);
+  const preview = page.locator('#preview');
+  for (const [name, style] of [['Screen print', 'screenprint'], ['Aged paper', 'aged'], ['Flat', 'flat']]) {
+    await page.getByRole('radio', { name }).click();
+    await expect(page.getByRole('radio', { name })).toHaveAttribute('aria-checked', 'true');
+    await expect(preview).toHaveAttribute('data-style', style);
+    await expect(preview.locator('svg')).toHaveAttribute('data-style', style);
+    await expect(preview.locator('filter')).toHaveCount(style === 'flat' ? 0 : style === 'screenprint' ? 3 : 3);
+    await page.screenshot({ path: `${SHOTS}/app-${style}.png` });
+  }
+});
+
 test('all choices are remembered after reopening', async ({ page }) => {
   await page.goto('./');
   await page.getByRole('radio', { name: 'Random ridgeline' }).click();
@@ -160,6 +173,7 @@ test('all choices are remembered after reopening', async ({ page }) => {
   await page.getByLabel('Destination').fill('Saas Fee');
   await page.getByRole('radio', { name: 'Bebas Neue' }).click();
   await page.getByRole('radio', { name: 'Arched' }).click();
+  await page.getByRole('radio', { name: 'Aged paper' }).click();
   const layers = await page.locator('#preview').getAttribute('data-layers');
   const seed = await page.locator('#preview').getAttribute('data-seed');
   await page.reload();
@@ -170,6 +184,7 @@ test('all choices are remembered after reopening', async ({ page }) => {
   await expect(page.getByLabel('Destination')).toHaveValue('Saas Fee');
   await expect(page.locator('#preview')).toHaveAttribute('data-font', 'bebas');
   await expect(page.locator('#preview')).toHaveAttribute('data-layout', 'arched');
+  await expect(page.locator('#preview')).toHaveAttribute('data-style', 'aged');
 });
 
 test('editor and fonts work offline', async ({ page, context }) => {
@@ -188,18 +203,20 @@ test('editor and fonts work offline', async ({ page, context }) => {
   expect(loaded).toBe(true);
 });
 
-test('full-size posters for review: typefaces and placements', async ({ browser }) => {
+test('full-size posters for review: print styles', async ({ browser }) => {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1800 }, deviceScaleFactor: 1 });
   const shots = [
-    'font=limelight&layout=arched&time=midday&layers=lake,hut,forest&title=Lac%20Bleu&tagline=Summer%20by%20the%20water',
-    'font=poiret&layout=bottom&time=dawn&layers=village,forest&title=Sonnenberg&tagline=First%20light',
-    'font=bebas&layout=top&time=night&layers=village,forest,gondola&title=Nachtfeld&tagline=Ski%20beneath%20the%20stars',
-    'font=josefin&layout=banner&time=alpenglow&peak=random&layers=lake,village,forest&title=Rosental&tagline=Evening%20glow',
+    ['flat', 'time=alpenglow&layers=village,forest'],
+    ['screenprint', 'time=alpenglow&layers=village,forest'],
+    ['aged', 'time=alpenglow&layers=village,forest'],
+    ['screenprint', 'time=midday&layers=lake,hut,forest&layout=banner&font=bebas&title=Seehalden&tagline=Summer%20by%20the%20lake'],
+    ['aged', 'time=night&peak=pyramid&layers=skier,gondola,forest&font=josefin&title=Col%20d%27Etoile&tagline=Ski%20beneath%20the%20stars'],
+    ['screenprint', 'time=dawn&peak=random&seed=44&layers=village,hut,forest&layout=arched&font=poiret&title=Sonnenberg&tagline=First%20light'],
   ];
-  for (const [k, q] of shots.entries()) {
-    await page.goto(`tests/e2e/pages/poster.html?i=0&seed=44&${q}`);
+  for (const [k, [style, q]] of shots.entries()) {
+    await page.goto(`tests/e2e/pages/poster.html?i=0&style=${style}&${q}`);
     await page.waitForSelector('body[data-ready="true"]');
-    await page.screenshot({ path: `${SHOTS}/poster-${k + 1}.png` });
+    await page.screenshot({ path: `${SHOTS}/poster-${k + 1}-${style}.jpg`, type: "jpeg", quality: 85 });
   }
   await page.close();
 });

@@ -5,6 +5,7 @@ import { PALETTES } from './palettes.js';
 import { polygon } from './svg.js';
 import { SCENERY } from './scene.js';
 import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
+import { PRINT_STYLES } from './styles/print.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
@@ -13,6 +14,7 @@ const TIME_LABELS = { dawn: 'Dawn', midday: 'Midday', alpenglow: 'Alpenglow', ni
 const SCENERY_LABELS = { village: '🏘️ Village', hut: '🛖 Hut', gondola: '🚡 Gondola', forest: '🌲 Forest', lake: '🏞️ Lake', skier: '⛷️ Skier' };
 const LAYOUT_LABELS = { top: 'Top', bottom: 'Bottom', arched: 'Arched', banner: 'Banner' };
 const FONT_LABELS = Object.fromEntries(Object.entries(TYPEFACES).map(([key, face]) => [key, face.label]));
+const STYLE_LABELS = { flat: 'Flat', screenprint: 'Screen print', aged: 'Aged paper' };
 const MAX_TITLE = 24;
 const MAX_TAGLINE = 40;
 const STORE_KEY = 'apm.editor';
@@ -23,6 +25,7 @@ const state = {
   ...base, id: 'preview', peak: 'spire', peakSeed: newSeed(), time: 'alpenglow',
   layers: { village: true, hut: false, gondola: false, forest: true, lake: false, skier: false },
   lettering: { title: 'Hochwald', tagline: 'Evening on the high peaks', layout: 'top', font: 'limelight' },
+  style: 'flat',
 };
 
 function newSeed() {
@@ -43,13 +46,14 @@ function load() {
     if (typeof l.tagline === 'string') state.lettering.tagline = l.tagline.slice(0, MAX_TAGLINE);
     if (LAYOUTS.includes(l.layout)) state.lettering.layout = l.layout;
     if (TYPEFACES[l.font]) state.lettering.font = l.font;
+    if (PRINT_STYLES.includes(saved.style)) state.style = saved.style;
   } catch { /* ignore */ }
 }
 
 function save() {
   try {
-    const { peak, peakSeed, time, layers, lettering } = state;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ peak, peakSeed, time, layers, lettering }));
+    const { peak, peakSeed, time, layers, lettering, style } = state;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ peak, peakSeed, time, layers, lettering, style }));
   } catch { /* ignore */ }
 }
 
@@ -88,6 +92,18 @@ function layoutIcon(layout) {
   return `<svg viewBox="0 0 28 40" aria-hidden="true">${frame}${marks[layout]}</svg>`;
 }
 
+// A little swatch hinting at each print finish.
+function styleIcon(style) {
+  const art = '<rect width="60" height="40" fill="#e9a25f"/><polygon points="6,40 30,10 54,40" fill="#1f3a5f"/><polygon points="25,16 30,10 35,16 30,19" fill="#f3e6c8"/>';
+  const extra = {
+    flat: '',
+    screenprint: '<g fill="#f3e6c8" opacity="0.8">' +
+      [[8, 6], [20, 4], [44, 8], [52, 18], [12, 22], [40, 30], [22, 34], [48, 36], [34, 24], [16, 12]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="0.9"/>`).join('') + '</g>',
+    aged: '<rect width="60" height="40" fill="#b08a55" opacity="0.45"/><circle cx="46" cy="10" r="9" fill="#6b4a2a" opacity="0.2"/><line x1="30" y1="0" x2="30" y2="40" stroke="#fff" stroke-width="1" opacity="0.5"/>',
+  };
+  return `<svg viewBox="0 0 60 40" aria-hidden="true">${art}${extra[style]}</svg>`;
+}
+
 // The word "Alpen" set in each typeface.
 function fontIcon(font) {
   const face = TYPEFACES[font];
@@ -112,6 +128,7 @@ export function startEditor() {
   const taglineInput = document.getElementById('tagline-input');
   const fontPicker = document.getElementById('font-picker');
   const layoutPicker = document.getElementById('layout-picker');
+  const stylePicker = document.getElementById('style-picker');
 
   load();
 
@@ -122,6 +139,7 @@ export function startEditor() {
   const sceneryButtons = [...sceneryPicker.querySelectorAll('button')];
   const fontButtons = radioGroup(fontPicker, Object.keys(TYPEFACES), FONT_LABELS, FONT_LABELS, fontIcon);
   const layoutButtons = radioGroup(layoutPicker, LAYOUTS, LAYOUT_LABELS, LAYOUT_LABELS, layoutIcon);
+  const styleButtons = radioGroup(stylePicker, PRINT_STYLES, STYLE_LABELS, STYLE_LABELS, styleIcon);
   titleInput.maxLength = MAX_TITLE;
   taglineInput.maxLength = MAX_TAGLINE;
   titleInput.value = state.lettering.title;
@@ -145,6 +163,8 @@ export function startEditor() {
     preview.dataset.layout = state.lettering.layout;
     for (const button of fontButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.lettering.font));
     for (const button of layoutButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.lettering.layout));
+    for (const button of styleButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.style));
+    preview.dataset.style = state.style;
     roll.hidden = state.peak !== 'random';
     save();
   }
@@ -191,6 +211,13 @@ export function startEditor() {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.lettering.layout = button.dataset.value;
+    render();
+  });
+
+  stylePicker.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-value]');
+    if (!button) return;
+    state.style = button.dataset.value;
     render();
   });
 

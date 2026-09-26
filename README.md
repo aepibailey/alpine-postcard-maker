@@ -21,8 +21,9 @@ appears. Tap it to update.
 - **M1b** — mountain picker (spire, massif, pyramid) + 🎲 random ridgeline generator ✅
 - **M2** — time of day: dawn, midday, alpenglow, starry night ✅
 - **M3** — scenery switches: village, hut, gondola, forest, lake, skier ✅
-- **M4** — lettering: your destination and tagline, 4 typefaces, 4 title placements
-- M5 onward — see [`docs/PLAN.md`](docs/PLAN.md)
+- **M4** — lettering: your destination and tagline, 4 typefaces, 4 title placements ✅
+- **M5** — print styles: flat, screen print, aged paper
+- M6 onward — see [`docs/PLAN.md`](docs/PLAN.md)
 
 ## Fonts
 Bundled under the SIL Open Font License 1.1 (licenses in `fonts/`):
