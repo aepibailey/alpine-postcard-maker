@@ -95,10 +95,10 @@ export function startPhotoControls({ state, render, changed }) {
     if (!file) return;
     status.textContent = 'Opening your photo…';
     try {
-      const id = await importPhoto(file);
+      const { id, x, y } = await importPhoto(file);
       const before = state().photo;
-      // A new photo starts centred, keeping the colours and inks chosen for the last one.
-      state().photo = normalizePhoto({ id, colors: before?.colors, inks: before?.inks });
+      // A new photo starts framed on its main peak, keeping the colours and inks chosen for the last one.
+      state().photo = normalizePhoto({ id, x, y, colors: before?.colors, inks: before?.inks });
       status.textContent = 'Making your poster…';
       changed();
     } catch (error) {

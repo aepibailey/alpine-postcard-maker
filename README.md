@@ -27,6 +27,7 @@ appears. Tap it to update.
 - **M7** — gallery: every poster kept on the phone; open, copy, delete; back up / restore to a file ✅
 - **M8** — v1.0 polish: welcome hint, ✨ Surprise me, mini poster while scrolling, About panel with font credits, accessibility checks ✅
 - **V2** — 📷 photo mode: turn your own mountain photos into posters with 4–6 flat inks (the photo's own colours or the time-of-day inks); drag and zoom to frame; photos stay on the phone and are included in backups
+- **V2.1** — photo mode refinements: calmer colours for vivid skies, small details (houses, far peaks) keep their own ink, tagline outlines over busy areas, tall phone photos start framed on the mountains, zoom slider right under the poster
 
 See [`docs/PLAN.md`](docs/PLAN.md) for later versions.
 

@@ -10,7 +10,7 @@ const out = process.argv[2];
 for (const [name, qs] of JSON.parse(process.argv[3])) {
   await p.goto(`http://localhost:4179/alpine-postcard-maker/tests/e2e/pages/photo.html?${qs}`);
   await p.waitForSelector('body[data-ready]', { timeout: 60000 });
-  console.log(name, await p.evaluate(() => document.body.dataset.ms), 'ms');
+  console.log(name, await p.evaluate(() => document.body.dataset.ms), 'ms', await p.evaluate(() => document.body.dataset.frame));
   await p.screenshot({ path: `${out}/${name}.jpg`, type: 'jpeg', quality: 80 });
 }
 await b.close(); server.kill();

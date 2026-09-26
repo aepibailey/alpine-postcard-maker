@@ -293,7 +293,17 @@ The tag for 1.0.0 is still waiting on the owner ("Not yet").
   - Backup v2 with photos.
   - 12 new unit tests (including `no-network.test.js`) and 10 new e2e tests in `tests/e2e/photo.spec.js`.
   - Screenshots are in `docs/screenshots/v2b/`.
-- **Next:** the owner tests on the phone and merges. Then V3 (trip series).
+- PR #11 (v2.0.0) was merged. The owner's first real photo exposed some weak spots. Their photos stay out of the repo, so it was tested from a temporary copy that was deleted.
+- **V2.1 (v2.1.0)** answers them:
+  - **Inks:** balanced k-means, so a big sky or roof can't use up the inks.
+  - **Small shapes:** islands that stand out strongly (ΔE > 40) survive at a quarter of the usual size.
+  - **Colours:** vivid colours are calmed (chroma capped at 42).
+  - **Lettering:** words over a busy area (20–80% light) get an outline in the other ink.
+  - **Framing:** tall photos start framed so the mountain tops sit under the title (`autoFrame`, vertical only; peak-finding sideways misfired on clouds).
+  - **Zoom slider:** it sits directly under the poster (owner's request).
+  - **Preview and export:** both are cut from the same `WORK_SIZE` crop, so they match exactly.
+  - **New test photos:** `tall-sky`, `meadow`, `phone-tall` and `snowy`.
+- **Next:** the owner tests v2.1 on the phone. Then V3 (trip series).
 
 
 ### Phase V2a: art spike. The owner approves the look before any controls are built.
