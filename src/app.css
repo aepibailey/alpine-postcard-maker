@@ -44,10 +44,12 @@ body:not([data-ready]) .tabs, body:not([data-ready]) main > section { visibility
 
 .tabs {
   display: grid;
-  grid-template-columns: 1fr 1.3fr auto;
+  grid-template-columns: 1fr auto;
   gap: 6px;
   margin: 0 0 10px;
 }
+
+.tablist { display: grid; grid-template-columns: 1fr 1.3fr; gap: 6px; }
 
 .tabs button {
   font: inherit;
@@ -331,3 +333,77 @@ body:not([data-ready]) .tabs, body:not([data-ready]) main > section { visibility
   background: var(--sun);
   color: var(--navy);
 }
+
+/* Keyboard and switch-access users can always see where they are. */
+:focus-visible { outline: 3px solid var(--rust); outline-offset: 2px; }
+
+.surprise-button { background: #963a26; }
+
+.welcome {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--navy);
+  border-radius: 12px;
+  background: #fffaf0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome[hidden] { display: none; }
+
+.welcome h2 { margin: 0; font-size: 1.05rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.welcome p { margin: 0; font-size: 0.9rem; line-height: 1.4; }
+
+.mini-preview {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  right: 10px;
+  z-index: 5;
+  width: 68px;
+  padding: 3px;
+  border: 2px solid var(--navy);
+  border-radius: 8px;
+  background: #fffaf0;
+  box-shadow: 0 4px 14px rgb(31 58 95 / 0.35);
+}
+
+.mini-preview[hidden], .editor[hidden] ~ .mini-preview { display: none; }
+
+.mini-art svg { display: block; width: 100%; height: auto; }
+
+.link-button {
+  font: inherit;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.about {
+  width: min(100% - 32px, 420px);
+  max-height: 85dvh;
+  padding: 0;
+  border: 2px solid var(--navy);
+  border-radius: 12px;
+  background: var(--cream);
+  color: var(--navy);
+}
+
+.about::backdrop { background: rgb(31 58 95 / 0.55); }
+
+.about-body { padding: 16px 18px; }
+
+.about h2 { margin: 0 0 4px; font-size: 1.05rem; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.about h3 { margin: 14px 0 4px; font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.about p, .about li { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+
+.about ul { margin: 6px 0 0; padding-left: 20px; }
+
+.about form { margin-top: 16px; }
+
+.about .action-button { width: 100%; }

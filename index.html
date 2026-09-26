@@ -18,9 +18,11 @@
     <h1>Alpine Postcard Maker</h1>
   </header>
 
-  <nav class="tabs" role="tablist" aria-label="Views">
-    <button type="button" role="tab" id="edit-tab" aria-selected="true" aria-controls="edit-view">✏️ Edit</button>
-    <button type="button" role="tab" id="gallery-tab" aria-selected="false" aria-controls="gallery-view">🖼️ Gallery (<span id="gallery-count">0</span>)</button>
+  <nav class="tabs" aria-label="Views">
+    <div class="tablist" role="tablist">
+      <button type="button" role="tab" id="edit-tab" aria-selected="true" aria-controls="edit-view">✏️ Edit</button>
+      <button type="button" role="tab" id="gallery-tab" aria-selected="false" aria-controls="gallery-view">🖼️ Gallery (<span id="gallery-count">0</span>)</button>
+    </div>
     <button type="button" class="new-button" id="new-button">+ New</button>
   </nav>
 
@@ -40,8 +42,16 @@
     </section>
 
     <section class="editor" id="edit-view" role="tabpanel" aria-labelledby="edit-tab" aria-label="Poster editor">
+      <div class="welcome" id="welcome" role="note" aria-labelledby="welcome-heading" hidden>
+        <h2 id="welcome-heading">Welcome!</h2>
+        <p>Make your own vintage Alpine poster. Scroll down to pick a mountain, the time of day, scenery and lettering &mdash; or tap <strong>✨ Surprise me</strong>. Then save it to your phone.</p>
+        <p>Every poster is kept in your Gallery, on this phone only. It all works without internet.</p>
+        <button type="button" class="action-button" id="welcome-button">Got it</button>
+      </div>
       <figure class="poster-frame" id="preview" aria-live="polite"></figure>
       <p class="peak-label" id="peak-label"></p>
+      <button type="button" class="roll-button surprise-button" id="surprise-button">✨ Surprise me</button>
+      <p class="hint">Keeps your destination and tagline.</p>
       <h2 class="picker-heading" id="size-heading">Save your poster</h2>
       <div class="picker picker-size" id="size-picker" role="radiogroup" aria-labelledby="size-heading"></div>
       <div class="segmented" id="fit-picker" role="radiogroup" aria-label="Wallpaper and square layout"></div>
@@ -74,12 +84,38 @@
       <div class="picker picker-style" id="style-picker" role="radiogroup" aria-labelledby="style-heading"></div>
       <p class="hint">Tip: swipe the poster to change the mountain</p>
     </section>
+    <button type="button" class="mini-preview" id="mini-preview" aria-label="Back up to the poster" hidden><span class="mini-art" aria-hidden="true"></span></button>
     <p class="status" id="offline-status">Checking offline support…</p>
   </main>
 
   <footer class="footer">
     <span>Version <span id="app-version">…</span></span>
+    · <button type="button" class="link-button" id="about-button">About</button>
   </footer>
+
+  <dialog class="about" id="about-dialog" aria-labelledby="about-heading">
+    <div class="about-body">
+    <h2 id="about-heading">About Alpine Postcard Maker</h2>
+    <p>Version <span id="about-version">…</span></p>
+    <h3>Original art</h3>
+    <p>Every mountain, village and sky is drawn by this app's own code, in the spirit of 1930s travel posters. Nothing is copied or traced from real posters, logos or brands.</p>
+    <h3>Your privacy</h3>
+    <p>Your posters never leave this phone unless you share or save them yourself. The app has no accounts, no tracking and no sound, and works without internet.</p>
+    <h3>Storage</h3>
+    <p id="about-storage">Checking…</p>
+    <h3>Typefaces</h3>
+    <p>All four are free fonts under the SIL Open Font License 1.1 (license files are included with the app):</p>
+    <ul>
+      <li><strong>Limelight</strong> &mdash; © 2011 Sorkin Type Co</li>
+      <li><strong>Josefin Sans</strong> &mdash; © 2010 The Josefin Sans Project Authors</li>
+      <li><strong>Poiret One</strong> &mdash; © 2011 The Poiret One Project Authors</li>
+      <li><strong>Bebas Neue</strong> &mdash; © 2010 Dharma Type</li>
+    </ul>
+    <form method="dialog">
+      <button type="submit" class="action-button" id="about-close">Close</button>
+    </form>
+    </div>
+  </dialog>
 
   <div class="update-banner" id="update-banner" hidden>
     <span>New version available</span>

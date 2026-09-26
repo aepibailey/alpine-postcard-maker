@@ -74,3 +74,22 @@ export function duplicateRecipe(recipe) {
   copy.lettering = { ...copy.lettering };
   return normalizeRecipe(copy);
 }
+
+// "Surprise me": a whole new look for the poster (mountain, sky, scenery, lettering style and
+// print finish). The owner's destination and tagline are kept.
+export function surpriseRecipe(recipe, random = Math.random) {
+  const choose = (list) => list[Math.floor(random() * list.length)];
+  const seed = () => 1 + Math.floor(random() * 999998);
+  const layers = Object.fromEntries(SCENERY.map((name) => [name, random() < 0.4]));
+  if (!SCENERY.some((name) => layers[name])) layers[choose(SCENERY)] = true;
+  return normalizeRecipe({
+    ...recipe,
+    seed: seed(),
+    peak: choose(PEAK_KINDS),
+    peakSeed: seed(),
+    time: choose(Object.keys(PALETTES)),
+    layers,
+    lettering: { ...recipe.lettering, font: choose(Object.keys(TYPEFACES)), layout: choose(LAYOUTS) },
+    style: choose(PRINT_STYLES),
+  });
+}

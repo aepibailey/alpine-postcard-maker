@@ -51,3 +51,22 @@ test('a duplicate is a separate poster with the same design', () => {
   copy.lettering.title = 'changed';
   assert.equal(original.lettering.title, 'Destination');
 });
+
+test('surprise me changes the look but keeps the words and identity', async () => {
+  const { surpriseRecipe } = await import('../../src/recipe.js');
+  const { createRng } = await import('../../src/rng.js');
+  const base = normalizeRecipe({ id: 'p-keep', createdAt: 5, updatedAt: 6, lettering: { title: 'Zermatt', tagline: 'Summer 1936' } });
+  const rng = createRng(7);
+  const looks = new Set();
+  for (let i = 0; i < 20; i++) {
+    const r = surpriseRecipe(base, rng);
+    assert.equal(r.id, 'p-keep');
+    assert.equal(r.createdAt, 5);
+    assert.equal(r.lettering.title, 'Zermatt');
+    assert.equal(r.lettering.tagline, 'Summer 1936');
+    assert.ok(Object.values(r.layers).some(Boolean), 'at least one scenery layer');
+    assert.deepEqual(normalizeRecipe(r), r, 'result is already valid');
+    looks.add(JSON.stringify([r.peak, r.time, r.style, r.lettering.font, r.lettering.layout]));
+  }
+  assert.ok(looks.size >= 15, `expected varied results, got ${looks.size}`);
+});

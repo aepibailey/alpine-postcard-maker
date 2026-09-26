@@ -5,7 +5,7 @@ import { polygon } from './svg.js';
 import { SCENERY } from './scene.js';
 import { TYPEFACES, LAYOUTS } from './layers/lettering.js';
 import { PRINT_STYLES } from './styles/print.js';
-import { MAX_TITLE, MAX_TAGLINE, randomSeed } from './recipe.js';
+import { MAX_TITLE, MAX_TAGLINE, randomSeed, surpriseRecipe } from './recipe.js';
 
 const PEAK_LABELS = { spire: 'Jagged spire', massif: 'Broad massif', pyramid: 'Lone pyramid', random: 'Random ridgeline' };
 const PEAK_SHORT = { spire: 'Spire', massif: 'Massif', pyramid: 'Pyramid', random: '🎲 Random' };
@@ -89,6 +89,10 @@ export function startEditor({ onChange = () => {} } = {}) {
   const fontPicker = document.getElementById('font-picker');
   const layoutPicker = document.getElementById('layout-picker');
   const stylePicker = document.getElementById('style-picker');
+  const surprise = document.getElementById('surprise-button');
+  const mini = document.getElementById('mini-preview');
+  const editView = document.getElementById('edit-view');
+  let miniShown = false;
 
   const peakButtons = radioGroup(peakPicker, PEAK_KINDS, PEAK_LABELS, PEAK_SHORT);
   const timeButtons = radioGroup(timePicker, TIMES, TIME_LABELS, TIME_LABELS, timeIcon);
@@ -123,7 +127,23 @@ export function startEditor({ onChange = () => {} } = {}) {
     for (const button of styleButtons) button.setAttribute('aria-checked', String(button.dataset.value === state.style));
     preview.dataset.style = state.style;
     roll.hidden = state.peak !== 'random';
+    if (miniShown) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini' });
   }
+
+  // A small copy of the poster stays in view while the owner scrolls down to the lower controls.
+  function showMini(show) {
+    miniShown = show;
+    mini.hidden = !show;
+    if (show && state) mini.querySelector('.mini-art').innerHTML = renderPoster(state, { id: 'mini' });
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      showMini(!editView.hidden && !entry.isIntersecting);
+    }, { threshold: 0.15 }).observe(preview);
+  }
+  mini.addEventListener('click', () => {
+    preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   // Every edit: redraw, then tell the app so it can save.
   function changed() {
@@ -180,6 +200,11 @@ export function startEditor({ onChange = () => {} } = {}) {
     const button = event.target.closest('button[data-value]');
     if (!button) return;
     state.style = button.dataset.value;
+    changed();
+  });
+
+  surprise.addEventListener('click', () => {
+    state = surpriseRecipe(state);
     changed();
   });
 
