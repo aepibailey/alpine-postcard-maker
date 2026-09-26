@@ -23,8 +23,9 @@ appears. Tap it to update.
 - **M3** — scenery switches: village, hut, gondola, forest, lake, skier ✅
 - **M4** — lettering: your destination and tagline, 4 typefaces, 4 title placements ✅
 - **M5** — print styles: flat, screen print, aged paper ✅
-- **M6** — export: phone wallpaper, match my screen, 10×15 print, square post → share sheet or Downloads
-- M7 onward — see [`docs/PLAN.md`](docs/PLAN.md)
+- **M6** — export: phone wallpaper, match my screen, 10×15 print, square post → share sheet or Downloads ✅
+- **M7** — gallery: every poster kept on the phone; open, copy, delete; back up / restore to a file
+- M8 — v1.0 polish — see [`docs/PLAN.md`](docs/PLAN.md)
 
 ## Fonts
 Bundled under the SIL Open Font License 1.1 (licenses in `fonts/`):

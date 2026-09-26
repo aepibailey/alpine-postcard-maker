@@ -1,8 +1,27 @@
 import { VERSION } from './version.js';
 import { startEditor } from './editor.js';
+import { startExport } from './export-ui.js';
+import { startGallery } from './gallery-ui.js';
+import * as store from './store.js';
 
 document.getElementById('app-version').textContent = VERSION;
-startEditor();
+
+async function startApp() {
+  let gallery;
+  const editor = startEditor({ onChange: (recipe) => store.edited(recipe, () => gallery?.updateCount()) });
+  editor.load(await store.startingPoster());
+  startExport(() => editor.current());
+  gallery = await startGallery(editor);
+  // Save straight away if the app is sent to the background or closed.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') store.flush({ withThumbnail: false });
+  });
+  document.body.dataset.ready = 'true';
+}
+
+startApp().catch((error) => {
+  document.getElementById('offline-status').textContent = `Something went wrong starting the app: ${error.message}`;
+});
 
 const status = document.getElementById('offline-status');
 const banner = document.getElementById('update-banner');
