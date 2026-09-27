@@ -121,7 +121,7 @@ export function startEditor({ onChange = () => {} } = {}) {
     preview.dataset.time = state.time;
     const peakName = state.peak === 'random' ? `${PEAK_LABELS.random} No. ${state.peakSeed}` : PEAK_LABELS[state.peak];
     label.textContent = state.photo
-      ? `Your photo · ${state.photo.colors} colours · ${TIME_LABELS[state.time]}`
+      ? `Your photo · ${state.photo.colors} colours${state.photo.spots ? ` · ${state.photo.spots.length} detail spot${state.photo.spots.length === 1 ? '' : 's'}` : ''} · ${TIME_LABELS[state.time]}`
       : `${peakName} · ${TIME_LABELS[state.time]}`;
     for (const button of peakButtons) {
       button.setAttribute('aria-checked', String(button.dataset.value === state.peak));

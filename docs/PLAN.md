@@ -303,7 +303,15 @@ The tag for 1.0.0 is still waiting on the owner ("Not yet").
   - **Zoom slider:** it sits directly under the poster (owner's request).
   - **Preview and export:** both are cut from the same `WORK_SIZE` crop, so they match exactly.
   - **New test photos:** `tall-sky`, `meadow`, `phone-tall` and `snowy`.
-- **Next:** the owner tests v2.1 on the phone. Then V3 (trip series).
+- PR #12 (v2.1) was merged.
+- The owner found that buildings are still lost: on their Ettal Abbey photo the abbey became beige blobs. They were offered an on-phone recognition model, outlines only, tap-to-keep-detail, or comparing all three. **They chose tap-to-keep-detail** and approved the spike.
+- **V2.2 (v2.2.0): detail spots.**
+  - A tap on a photo poster adds a spot, stored as `photo.spots [{x, y}]` in photo fractions, up to 12 (`MAX_SPOTS`, raised from 4 at the owner's request).
+  - Each spot is re-posterized from a `SPOT_SIZE` patch at 3× detail, with at most 3 extra inks in total (`EXTRA_INKS`, ΔE > 15 counts as a new colour). It's blended in a soft-rimmed circle of radius `SPOT_RADIUS` = 13% of the poster width.
+  - Keylines were tried and dropped: at this size they didn't show.
+  - Each spot costs about 55 ms in Node.
+  - New CC0 fixture: `monastery.jpg` (Benediktbeuern). Screenshots are in `docs/screenshots/v2-2/`.
+- **Next:** the owner tests v2.2 on the phone. Then V3 (trip series).
 
 
 ### Phase V2a: art spike. The owner approves the look before any controls are built.

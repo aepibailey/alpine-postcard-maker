@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFile, copyFile, mkdir } from 'node:fs/promises';
 import AxeBuilder from '@axe-core/playwright';
 
-const SHOTS = 'docs/screenshots/v2-1';
+const SHOTS = 'docs/screenshots/v2-2';
 const PHOTO = 'tests/fixtures/photos/peak.jpg';
 const title = (page) => page.getByRole('textbox', { name: 'Destination' });
 const preview = (page) => page.locator('#preview');
@@ -142,6 +142,47 @@ test('a tall phone photo starts framed on its mountains', async ({ page }) => {
   expect(Number(await preview(page).getAttribute('data-y'))).toBeLessThan(0.45);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${SHOTS}/tall-photo-framed.png` });
+});
+
+test('tap to keep a spot detailed, tap again to undo', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await title(page).fill('Benediktbeuern');
+  await usePhoto(page, 'tests/fixtures/photos/monastery.jpg');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const box = await page.locator('#preview svg').boundingBox();
+  const at = (u, v) => [box.x + box.width * u, box.y + box.height * v];
+  const before = await artUrl(page);
+
+  await page.mouse.click(...at(0.5, 0.45));
+  await expect(preview(page)).toHaveAttribute('data-spots', '1');
+  await expect(page.locator('#peak-label')).toContainText('1 detail spot');
+  await expect(page.locator('.spot-ring')).toHaveCount(1);
+  await posterReady(page);
+  expect(await artUrl(page)).not.toBe(before);
+  await page.screenshot({ path: `${SHOTS}/tapped-spot.png` });
+
+  await page.mouse.click(...at(0.3, 0.75));
+  await expect(preview(page)).toHaveAttribute('data-spots', '2');
+  await page.mouse.click(...at(0.5, 0.45)); // tapping a spot again removes it
+  await expect(preview(page)).toHaveAttribute('data-spots', '1');
+  await posterReady(page);
+
+  // A drag moves the photo; it doesn't add a spot.
+  await page.mouse.move(...at(0.5, 0.5));
+  await page.mouse.down();
+  await page.mouse.move(at(0.5, 0.5)[0] + 60, at(0.5, 0.5)[1], { steps: 5 });
+  await page.mouse.up();
+  await posterReady(page);
+  await expect(preview(page)).toHaveAttribute('data-spots', '1');
+
+  // Spots are kept with the poster.
+  await page.reload();
+  await posterReady(page);
+  await expect(preview(page)).toHaveAttribute('data-spots', '1');
+  await page.getByRole('button', { name: 'Clear detail spots' }).click();
+  await expect(preview(page)).toHaveAttribute('data-spots', '0');
+  await expect(page.getByRole('button', { name: 'Clear detail spots' })).toBeHidden();
 });
 
 test('Surprise me keeps the photo', async ({ page }) => {

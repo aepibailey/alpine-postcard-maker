@@ -378,20 +378,88 @@ function boxBlur1(src, w, h) {
 // with exactly the same shapes and inks, so the preview and a big export always match.
 export const WORK_SIZE = 540;
 
+// Detail spots: a circle the owner taps (e.g. a church in front of a mountain) is looked at again
+// at 3× the detail, with up to EXTRA_INKS more inks for colours the rest of the poster doesn't
+// have. SPOT_RADIUS is a share of the poster's width; SPOT_SIZE is the pixel size (fixed, so every
+// size of poster is cut the same) of the square photo patch a spot is worked out from.
+export const SPOT_RADIUS = 0.13;
+export const SPOT_SIZE = Math.round(SPOT_RADIUS * 2 * 3 * WORK_SIZE * (2 / 3));
+export const EXTRA_INKS = 3;
+const NEW_INK = 15; // ΔE: a spot colour this far from every ink gets an ink of its own
+
+// A spot's shapes: its patch split into the poster's inks plus any new ones it needs (added to
+// `centres`, at most `budget.left` in all). Transparent pixels (outside the photo) are ignored.
+function spotLabels(patch, centres, budget, seed) {
+  const work = blur(sharpen(patch, 2, 0.5), 1);
+  const { width: w, height: h, data } = work;
+  const samples = [];
+  for (let p = 0; p < w * h; p += 2) if (patch.data[p * 4 + 3] > 0) samples.push(toKey(data[p * 4], data[p * 4 + 1], data[p * 4 + 2]));
+  if (samples.length > 40 && budget.left > 0) {
+    const { points, weights } = balancedSamples(samples);
+    const local = kmeans(points, Math.min(5, points.length), createRng(seed), 10, weights);
+    for (const c of local.sort((a, b) => a[0] - b[0])) {
+      if (budget.left > 0 && centres.every((g) => dist2(fromKey(g), fromKey(c)) > NEW_INK ** 2)) {
+        centres.push(c);
+        budget.left--;
+      }
+    }
+  }
+  // Tidy away speckle (e.g. forest texture) but keep small shapes that stand out, like windows.
+  const stands = (a, b) => dist2(fromKey(centres[a]), fromKey(centres[b])) > 35 ** 2;
+  let labels = smooth(assign(work, centres), w, h, 1, 2);
+  labels = mergeSmall(labels, w, h, Math.max(3, Math.round((w * h) / 1500)), stands);
+  return { labels, width: w, height: h };
+}
+
 // Photo → flat-ink poster image. Returns { width, height, data, inks, labels }.
 // width/height: the size to draw (default: the image's). `antialias: false` keeps edges pure ink.
-export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, antialias = true, width = image.width, height = image.height } = {}) {
+// spots: [{ u, v, patch }] detail spots, centred at (u, v) as shares of the poster's width and
+// height, each with its SPOT_SIZE-square photo patch.
+export function posterize(image, { colors = 5, inks = 'poster', palette, seed = 1, antialias = true, width = image.width, height = image.height, spots = [] } = {}) {
   const k = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(colors)));
   const work = blur(sharpen(downscale(image, WORK_SIZE)), 1);
   const { width: w, height: h } = work;
   const { points, weights } = balancedSamples(samplePixels(work));
   const centres = kmeans(points, k, createRng(seed), 14, weights);
-  const lab = centres.map(fromKey);
-  const stands = (a, b) => dist2(lab[a], lab[b]) > 40 ** 2;
+  const baseLab = centres.map(fromKey);
+  const stands = (a, b) => dist2(baseLab[a], baseLab[b]) > 40 ** 2;
   let labels = smooth(assign(work, centres), w, h, 1, 2);
   labels = mergeSmall(labels, w, h, Math.max(4, Math.round((w * h) / 1200)), stands);
   labels = smooth(labels, w, h, 2, 1);
+
+  const budget = { left: EXTRA_INKS };
+  const details = spots.map((spot, i) => ({ ...spot, ...spotLabels(spot.patch, centres, budget, seed + i + 1) }));
+  const lab = centres.map(fromKey);
   const colours = inks === 'poster' && palette ? toInks(lab, palette) : photoInks(lab);
   const data = renderLabels(labels, w, h, width, height, colours, antialias);
+  for (const d of details) {
+    paintSpot(data, width, height, d.u, d.v, renderLabels(d.labels, d.width, d.height, ...spotBox(width).size, colours, antialias), antialias);
+  }
   return { width, height, data, inks: colours, labels: { data: labels, width: w, height: h } };
+}
+
+const spotBox = (width) => {
+  const side = Math.max(2, Math.round(2 * SPOT_RADIUS * width));
+  return { side, size: [side, side] };
+};
+
+// Lays a spot's detailed pixels over the poster inside a circle with a soft rim.
+function paintSpot(data, width, height, u, v, pixels, antialias) {
+  const { side } = spotBox(width);
+  const cx = u * width, cy = v * height, r = side / 2;
+  const feather = antialias ? Math.max(1, r * 0.12) : 0;
+  const x0 = Math.round(cx - r), y0 = Math.round(cy - r);
+  for (let j = 0; j < side; j++) {
+    const y = y0 + j;
+    if (y < 0 || y >= height) continue;
+    for (let i = 0; i < side; i++) {
+      const x = x0 + i;
+      if (x < 0 || x >= width) continue;
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+      const t = feather ? Math.min(1, Math.max(0, (r - d) / feather)) : (d <= r ? 1 : 0);
+      if (!t) continue;
+      const o = (y * width + x) * 4, q = (j * side + i) * 4;
+      for (let c = 0; c < 3; c++) data[o + c] = data[o + c] + (pixels[q + c] - data[o + c]) * t;
+    }
+  }
 }

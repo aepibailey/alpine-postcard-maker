@@ -1,6 +1,7 @@
-import { PHOTO_COLORS, PHOTO_INKS, normalizePhoto } from './recipe.js';
+import { PHOTO_COLORS, PHOTO_INKS, MAX_SPOTS, normalizePhoto } from './recipe.js';
 import { importPhoto, loadPhoto, loadedPhoto, photoArt, cachedArt, PhotoError } from './photo/photo-art.js';
-import { panCrop } from './photo/photo-poster.js';
+import { panCrop, cropRect } from './photo/photo-poster.js';
+import { SPOT_RADIUS } from './photo/posterize.js';
 
 const INK_LABELS = { photo: 'Photo colours', poster: 'Poster inks' };
 
@@ -23,6 +24,7 @@ export function startPhotoControls({ state, render, changed }) {
   const colorsPicker = document.getElementById('photo-colors-picker');
   const inksPicker = document.getElementById('photo-inks-picker');
   const zoom = document.getElementById('photo-zoom');
+  const clearSpots = document.getElementById('clear-spots-button');
 
   colorsPicker.innerHTML = PHOTO_COLORS.map((n) =>
     `<button type="button" role="radio" data-value="${n}" aria-label="${n} colours">` +
@@ -79,8 +81,9 @@ export function startPhotoControls({ state, render, changed }) {
     if (document.activeElement !== zoom) zoom.value = String(photo.zoom);
     Object.assign(preview.dataset, {
       photo: photo.id, colors: String(photo.colors), inks: photo.inks,
-      zoom: photo.zoom.toFixed(2), x: photo.x.toFixed(3), y: photo.y.toFixed(3),
+      zoom: photo.zoom.toFixed(2), x: photo.x.toFixed(3), y: photo.y.toFixed(3), spots: String(photo.spots?.length ?? 0),
     });
+    clearSpots.hidden = !photo.spots?.length;
     if (live) return { raw: live.raw, art: artFor(recipe) };
     const art = artFor(recipe);
     if (!cachedArt(recipe)) makeArt();
@@ -161,15 +164,79 @@ export function startPhotoControls({ state, render, changed }) {
     state().photo = panCrop(drag.raw.width, drag.raw.height, drag.crop, dx, dy);
     render();
   });
-  const endDrag = (event) => {
+  const endDrag = (event, tapped) => {
     if (!drag || event.pointerId !== drag.pointer) return;
-    const { moved } = drag;
+    const { moved, raw } = drag;
     drag = null;
     live = null;
     if (moved) changed();
+    else if (tapped) toggleSpot(event, raw);
   };
-  preview.addEventListener('pointerup', endDrag);
-  preview.addEventListener('pointercancel', endDrag);
+  preview.addEventListener('pointerup', (event) => endDrag(event, true));
+  preview.addEventListener('pointercancel', (event) => endDrag(event, false));
+
+  // A tap (no drag) keeps that spot of the photo detailed, or removes a spot tapped again.
+  function toggleSpot(event, raw) {
+    const art = preview.querySelector('svg')?.getBoundingClientRect();
+    if (!art?.width) return;
+    const u = (event.clientX - art.left) / art.width;
+    const v = (event.clientY - art.top) / art.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return;
+    const photo = state().photo;
+    const r = cropRect(raw.width, raw.height, photo);
+    const px = r.left + u * r.width;
+    const py = r.top + v * r.height;
+    const spots = photo.spots ?? [];
+    const near = spots.findIndex((s) => Math.hypot(s.x * raw.width - px, s.y * raw.height - py) < SPOT_RADIUS * r.width * 0.6);
+    if (near >= 0) {
+      spots.splice(near, 1);
+      status.textContent = 'Detail spot removed.';
+    } else if (spots.length >= MAX_SPOTS) {
+      status.textContent = `That's the most detail spots (${MAX_SPOTS}). Tap one to remove it.`;
+      return;
+    } else {
+      spots.push({ x: Math.round((px / raw.width) * 1e4) / 1e4, y: Math.round((py / raw.height) * 1e4) / 1e4 });
+      status.textContent = 'Keeping this spot detailed…';
+    }
+    if (spots.length) photo.spots = spots; else delete photo.spots;
+    changed();
+    showRings();
+  }
+
+  // Briefly ring every detail spot, so the owner can see where they are.
+  function showRings() {
+    const photo = state().photo;
+    const raw = photo && loadedPhoto(photo.id);
+    // Rings live in the editor, over the poster, so redrawing the poster doesn't wipe them.
+    const layer = preview.parentElement;
+    for (const ring of layer.querySelectorAll('.spot-ring')) ring.remove();
+    const art = preview.querySelector('svg');
+    if (!raw || !art || !photo.spots) return;
+    const box = art.getBoundingClientRect();
+    const frame = layer.getBoundingClientRect();
+    const r = cropRect(raw.width, raw.height, photo);
+    const size = 2 * SPOT_RADIUS * box.width;
+    for (const s of photo.spots) {
+      const u = (s.x * raw.width - r.left) / r.width;
+      const v = (s.y * raw.height - r.top) / r.height;
+      const ring = Object.assign(document.createElement('span'), { className: 'spot-ring' });
+      ring.setAttribute('aria-hidden', 'true');
+      Object.assign(ring.style, {
+        width: `${size}px`, height: `${size}px`,
+        left: `${box.left - frame.left + u * box.width - size / 2}px`,
+        top: `${box.top - frame.top + v * box.height - size / 2}px`,
+      });
+      layer.append(ring);
+      ring.addEventListener('animationend', () => ring.remove());
+    }
+  }
+
+  clearSpots.addEventListener('click', () => {
+    if (!state().photo) return;
+    delete state().photo.spots;
+    status.textContent = 'Detail spots cleared.';
+    changed();
+  });
 
   return {
     update,

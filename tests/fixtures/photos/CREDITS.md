@@ -12,4 +12,5 @@ Each was downscaled to 1200px on the long edge.
 | `meadow.jpg` | [Sterzersee with view towards Großer Widderstein.jpg](https://commons.wikimedia.org/wiki/File:Sterzersee_with_view_towards_Gro%C3%9Fer_Widderstein.jpg), Wikimedia Commons | Harald Hetzner | CC0 1.0 (public domain dedication) |
 | `phone-tall.jpg` | A tall (about 9:19.5, like a phone photo) crop of the same Sterzersee photo | Harald Hetzner | CC0 1.0 (public domain dedication) |
 | `snowy.jpg` | [Snowy mountain in the Dolomites (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Snowy_mountain_in_the_Dolomites_(Unsplash).jpg), Wikimedia Commons | Mack Wanders | CC0 1.0 (public domain dedication) |
+| `monastery.jpg` | [Benediktbeuern und Benediktenwand.JPG](https://commons.wikimedia.org/wiki/File:Benediktbeuern_und_Benediktenwand.JPG), Wikimedia Commons | Joe MiGo | CC0 1.0 (public domain dedication) |
 | `standin.jpg` | Drawn in code for this project (layered ridges, sky gradient, noise). Not a real photo. | — | Original, same license as this repo |

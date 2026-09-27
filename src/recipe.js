@@ -27,9 +27,20 @@ const clamp = (v, lo, hi, fallback) => (Number.isFinite(v) ? Math.min(hi, Math.m
 export const PHOTO_COLORS = [4, 5, 6];
 export const PHOTO_INKS = ['photo', 'poster'];
 export const MAX_ZOOM = 3;
+// Detail spots: places the owner tapped to keep detailed (e.g. a church), as shares of the photo.
+export const MAX_SPOTS = 12;
+
+function normalizeSpots(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s) => s && Number.isFinite(s.x) && Number.isFinite(s.y))
+    .slice(0, MAX_SPOTS)
+    .map((s) => ({ x: Math.round(clamp(s.x, 0, 1, 0.5) * 1e4) / 1e4, y: Math.round(clamp(s.y, 0, 1, 0.5) * 1e4) / 1e4 }));
+}
 
 export function normalizePhoto(raw) {
   if (!raw || typeof raw !== 'object' || typeof raw.id !== 'string' || !raw.id) return undefined;
+  const spots = normalizeSpots(raw.spots);
   return {
     id: raw.id,
     x: clamp(raw.x, 0, 1, 0.5),
@@ -37,6 +48,7 @@ export function normalizePhoto(raw) {
     zoom: clamp(raw.zoom, 1, MAX_ZOOM, 1),
     colors: pick(raw.colors, PHOTO_COLORS, 5),
     inks: pick(raw.inks, PHOTO_INKS, 'photo'),
+    ...(spots.length ? { spots } : {}),
   };
 }
 
