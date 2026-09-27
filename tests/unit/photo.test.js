@@ -154,3 +154,11 @@ test('lettering over a busy part of the photo gets an outline', () => {
   assert.doesNotMatch(renderPhotoPoster(r, plain), /data-role="halo"/);
   assert.doesNotMatch(renderPoster(createRecipe()), /data-role="halo"/, 'drawn posters are unchanged');
 });
+
+test('detail spots are kept, clamped and limited', () => {
+  const p = normalizePhoto({ id: 'ph-1', spots: [{ x: 0.25, y: 0.5 }, { x: -2, y: 3 }, { x: 'a', y: 1 }, null] });
+  assert.deepEqual(p.spots, [{ x: 0.25, y: 0.5 }, { x: 0, y: 1 }]);
+  assert.equal(normalizePhoto({ id: 'ph-1', spots: Array.from({ length: 40 }, () => ({ x: 0.5, y: 0.5 })) }).spots.length, 12);
+  assert.equal('spots' in normalizePhoto({ id: 'ph-1', spots: [] }), false);
+  assert.equal('spots' in normalizePhoto({ id: 'ph-1', spots: 'here' }), false);
+});

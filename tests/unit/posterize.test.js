@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab, mergeSmall, downscale, photoInks } from '../../src/photo/posterize.js';
+import { posterize, kmeans, samplePixels, assign, smooth, toInks, inkLadder, toLab, mergeSmall, downscale, photoInks, SPOT_SIZE, EXTRA_INKS } from '../../src/photo/posterize.js';
 import { PALETTES } from '../../src/palettes.js';
 import { createRng } from '../../src/rng.js';
 
@@ -126,4 +126,65 @@ test('vivid colours are calmed, dull ones enriched', () => {
   const [vivid, dull] = photoInks([[60, 0, -70], [50, 8, 8]]).map((c) => toLab(...c));
   assert.ok(Math.hypot(vivid[1], vivid[2]) <= 43);
   assert.ok(Math.hypot(dull[1], dull[2]) > Math.hypot(8, 8));
+});
+
+// A big green hillside with a tiny building (white walls, orange roof) the posterizer can't keep
+// at its working size; and the photo patch a detail spot on it would get (the building, large).
+function hillsideWithBuilding() {
+  const fill = (w, h, at) => {
+    const data = new Uint8ClampedArray(w * h * 4);
+    for (let p = 0; p < w * h; p++) data.set([...at(p % w, Math.floor(p / w)), 255], p * 4);
+    return { width: w, height: h, data };
+  };
+  const photo = fill(360, 540, (x, y) => (y < 150 ? [90, 140, 220] : ((x * 7 + y * 3) % 11 < 5 ? [40, 70, 35] : [70, 100, 50])));
+  for (let y = 300; y < 303; y++) for (let x = 180; x < 184; x++) photo.data.set([225, 110, 60, 255], (y * 360 + x) * 4);
+  const patch = fill(SPOT_SIZE, SPOT_SIZE, (x, y) => {
+    const inBuilding = x > SPOT_SIZE * 0.3 && x < SPOT_SIZE * 0.7;
+    if (inBuilding && y > SPOT_SIZE * 0.3 && y < SPOT_SIZE * 0.45) return [225, 110, 60];
+    if (inBuilding && y >= SPOT_SIZE * 0.45 && y < SPOT_SIZE * 0.7) return [245, 242, 235];
+    return (x * 7 + y * 3) % 11 < 5 ? [40, 70, 35] : [70, 100, 50];
+  });
+  return { photo, patch };
+}
+
+const hasOrange = (inks) => inks.some((c) => { const [, a, b] = toLab(...c); return a > 20 && b > 20; });
+
+test('a detail spot keeps a building the rest of the poster would lose', () => {
+  const { photo, patch } = hillsideWithBuilding();
+  const plain = posterize(photo, { colors: 4, inks: 'photo', width: 600, height: 900 });
+  assert.ok(!hasOrange(plain.inks), 'without a spot the roof has no ink');
+  const spotted = posterize(photo, { colors: 4, inks: 'photo', width: 600, height: 900, spots: [{ u: 0.5, v: 0.56, patch }] });
+  assert.ok(hasOrange(spotted.inks), 'with a spot the roof gets its own ink');
+  const [cx, cy] = [300, Math.round(0.56 * 900)];
+  const i = ((cy - 20) * 600 + cx) * 4; // the roof, inside the spot
+  assert.ok(toLab(spotted.data[i], spotted.data[i + 1], spotted.data[i + 2])[1] > 15, 'the roof is drawn in orange');
+});
+
+test('spots add at most three inks, and far from them the poster keeps its own inks', () => {
+  const { photo, patch } = hillsideWithBuilding();
+  const spots = Array.from({ length: 6 }, (_, n) => ({ u: 0.2 + n * 0.12, v: 0.5, patch }));
+  const out = posterize(photo, { colors: 4, inks: 'photo', width: 600, height: 900, spots, antialias: false });
+  assert.ok(out.inks.length <= 4 + EXTRA_INKS);
+  assert.ok(distinct(out) <= 4 + EXTRA_INKS);
+  const plain = posterize(photo, { colors: 4, inks: 'photo', width: 600, height: 900, antialias: false });
+  const far = (50 * 600 + 300) * 4; // the sky, far from every spot
+  const colourAt = (o) => o.inks.findIndex((c) => c[0] === o.data[far] && c[1] === o.data[far + 1] && c[2] === o.data[far + 2]);
+  assert.ok(colourAt(out) >= 0 && colourAt(plain) >= 0);
+});
+
+test('with spots, a small preview and a big export still match', () => {
+  const { photo, patch } = hillsideWithBuilding();
+  const opts = { colors: 4, inks: 'photo', antialias: false, spots: [{ u: 0.5, v: 0.56, patch }] };
+  const a = posterize(photo, { ...opts, width: 600, height: 900 });
+  const b = posterize(photo, { ...opts, width: 1200, height: 1800 });
+  assert.deepEqual(a.inks, b.inks);
+  let match = 0, n = 0;
+  for (let y = 380; y < 620; y += 3) {
+    for (let x = 200; x < 400; x += 3) {
+      n++;
+      const i = (y * 600 + x) * 4, j = ((2 * y) * 1200 + 2 * x) * 4;
+      if (a.data[i] === b.data[j] && a.data[i + 1] === b.data[j + 1] && a.data[i + 2] === b.data[j + 2]) match++;
+    }
+  }
+  assert.ok(match / n > 0.95, `${Math.round((100 * match) / n)}% of the spot matches`);
 });
