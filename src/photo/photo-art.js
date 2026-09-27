@@ -1,7 +1,7 @@
 import { getPhoto, putPhoto } from '../gallery-db.js';
 import { PALETTES } from '../palettes.js';
-import { posterize, toLab, WORK_SIZE } from './posterize.js';
-import { cropToImageData, imageDataToUrl, lightnessRows, autoFrame } from './photo-poster.js';
+import { posterize, toLab, WORK_SIZE, SPOT_RADIUS, SPOT_SIZE } from './posterize.js';
+import { cropToImageData, cropRect, imageDataToUrl, lightnessRows, autoFrame } from './photo-poster.js';
 
 // Photos for photo posters: kept in IndexedDB on the phone (never uploaded), turned into
 // flat-ink art on demand, with the latest results remembered so typing a title doesn't redo it.
@@ -13,6 +13,28 @@ export const PREVIEW_SIZE = { width: 800, height: 1200 };
 export class PhotoError extends Error {}
 
 const newPhotoId = () => `ph-${globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`}`;
+
+// The detail spots that show in the poster's framing, each with the square patch of photo it's
+// worked out from: [{ u, v, patch }] (u, v: the centre as shares of the poster's width and height).
+export function spotInputs(source, photo) {
+  const pw = source.naturalWidth ?? source.width;
+  const ph = source.naturalHeight ?? source.height;
+  const r = cropRect(pw, ph, photo);
+  const half = SPOT_RADIUS * r.width;
+  const out = [];
+  for (const spot of photo.spots ?? []) {
+    const cx = spot.x * pw, cy = spot.y * ph;
+    const u = (cx - r.left) / r.width, v = (cy - r.top) / r.height;
+    if (u < -SPOT_RADIUS || u > 1 + SPOT_RADIUS || v < -half / r.height || v > 1 + half / r.height) continue;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = SPOT_SIZE;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, cx - half, cy - half, 2 * half, 2 * half, 0, 0, SPOT_SIZE, SPOT_SIZE);
+    out.push({ u, v, patch: ctx.getImageData(0, 0, SPOT_SIZE, SPOT_SIZE) });
+  }
+  return out;
+}
 
 // A first framing for a photo (an <img>, ImageBitmap or canvas): centred on its main peak.
 export function suggestFrame(source) {
@@ -76,8 +98,9 @@ export function loadPhoto(id) {
 export const loadedPhoto = (id) => ready.get(id) ?? null;
 
 const artKey = (recipe, width, height) => {
-  const { id, x, y, zoom, colors, inks } = recipe.photo;
-  return [id, x.toFixed(4), y.toFixed(4), zoom.toFixed(3), colors, inks, inks === 'poster' ? recipe.time : '', width, height].join('|');
+  const { id, x, y, zoom, colors, inks, spots = [] } = recipe.photo;
+  const where = spots.map((s) => `${s.x.toFixed(4)},${s.y.toFixed(4)}`).join(';');
+  return [id, x.toFixed(4), y.toFixed(4), zoom.toFixed(3), colors, inks, inks === 'poster' ? recipe.time : '', where, width, height].join('|');
 };
 
 // Remembered results: small ones (preview size) only, newest last.
@@ -104,7 +127,7 @@ export function photoArt(recipe, width = PREVIEW_SIZE.width, height = PREVIEW_SI
     await nextFrame(); // let the page show "Making poster…" before the work starts
     // The photo is read at the posterizer's working size, so every size of poster gets the same shapes.
     const pixels = cropToImageData(bitmap, photo, Math.round((WORK_SIZE * width) / height), WORK_SIZE);
-    const poster = posterize(pixels, { colors: photo.colors, inks: photo.inks, palette: PALETTES[time], seed: 1, width, height });
+    const poster = posterize(pixels, { colors: photo.colors, inks: photo.inks, palette: PALETTES[time], seed: 1, width, height, spots: spotInputs(bitmap, photo) });
     const result = { url: imageDataToUrl(poster), inks: poster.inks, rows: lightnessRows(poster) };
     if (key.endsWith(`|${PREVIEW_SIZE.width}|${PREVIEW_SIZE.height}`)) remember(key, result, finished);
     return result;
